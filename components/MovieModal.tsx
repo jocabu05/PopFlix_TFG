@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import {
     Dimensions,
     Image,
@@ -29,16 +29,62 @@ export interface MovieDetail {
   year?: number;
 }
 
+interface Review {
+  id: string;
+  author: string;
+  rating: number;
+  content: string;
+  date: string;
+}
+
 interface MovieModalProps {
   visible: boolean;
   movie: MovieDetail | null;
   onClose: () => void;
+  onAddToFavorites?: (movieId: number) => void;
+  isFavorite?: boolean;
 }
 
 const { height } = Dimensions.get("window");
 
-export default function MovieModal({ visible, movie, onClose }: MovieModalProps) {
+export default function MovieModal({ 
+  visible, 
+  movie, 
+  onClose,
+  onAddToFavorites,
+  isFavorite = false 
+}: MovieModalProps) {
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  
   if (!movie) return null;
+
+  // Mock reviews - en producción vendrían de la API
+  const mockReviews: Review[] = [
+    {
+      id: "1",
+      author: "Juan García",
+      rating: 9,
+      content: "Una película increíble, recomendada sin dudas. La cinematografía es hermosa y la trama mantiene el suspenso.",
+      date: "Hace 2 días"
+    },
+    {
+      id: "2",
+      author: "María López",
+      rating: 8,
+      content: "Muy buena película. Los actores hicieron un excelente trabajo.",
+      date: "Hace 1 semana"
+    },
+    {
+      id: "3",
+      author: "Carlos Rodríguez",
+      rating: 7,
+      content: "Está bien, pero esperaba más. La segunda mitad es mejor que la primera.",
+      date: "Hace 10 días"
+    },
+  ];
+
+  const displayedReviews = showAllReviews ? mockReviews : mockReviews.slice(0, 1);
+
 
   return (
     <Modal
@@ -132,11 +178,14 @@ export default function MovieModal({ visible, movie, onClose }: MovieModalProps)
                 <Text style={styles.playButtonText}>Reproducir</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.addButton}>
+              <TouchableOpacity 
+                style={[styles.addButton, isFavorite && styles.addButtonActive]}
+                onPress={() => onAddToFavorites?.(movie.id)}
+              >
                 <MaterialCommunityIcons
-                  name="plus"
+                  name={isFavorite ? "heart" : "heart-outline"}
                   size={24}
-                  color={NEON_RED}
+                  color={isFavorite ? NEON_RED : TEXT_LIGHT}
                 />
               </TouchableOpacity>
             </View>
@@ -145,6 +194,58 @@ export default function MovieModal({ visible, movie, onClose }: MovieModalProps)
             <View style={styles.synopsisContainer}>
               <Text style={styles.synopsisTitle}>Sinopsis</Text>
               <Text style={styles.synopsisText}>{movie.description}</Text>
+            </View>
+
+            {/* Reseñas */}
+            <View style={styles.reviewsContainer}>
+              <Text style={styles.reviewsTitle}>Reseñas</Text>
+              <View style={styles.reviewsList}>
+                {displayedReviews.map((review) => (
+                  <View key={review.id} style={styles.reviewItem}>
+                    <View style={styles.reviewHeader}>
+                      <Text style={styles.reviewAuthor}>{review.author}</Text>
+                      <View style={styles.reviewRating}>
+                        <MaterialCommunityIcons
+                          name="star"
+                          size={14}
+                          color={NEON_RED}
+                        />
+                        <Text style={styles.reviewRatingText}>{review.rating}/10</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.reviewDate}>{review.date}</Text>
+                    <Text style={styles.reviewContent}>{review.content}</Text>
+                  </View>
+                ))}
+              </View>
+              
+              {mockReviews.length > 1 && !showAllReviews && (
+                <TouchableOpacity 
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllReviews(true)}
+                >
+                  <Text style={styles.showMoreText}>Ver más reseñas ({mockReviews.length})</Text>
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={20}
+                    color={NEON_RED}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {showAllReviews && mockReviews.length > 1 && (
+                <TouchableOpacity 
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllReviews(false)}
+                >
+                  <Text style={styles.showMoreText}>Ver menos</Text>
+                  <MaterialCommunityIcons
+                    name="chevron-up"
+                    size={20}
+                    color={NEON_RED}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Información adicional */}
@@ -349,5 +450,72 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
     color: TEXT_LIGHT,
+  },
+  reviewsContainer: {
+    marginBottom: 24,
+  },
+  reviewsTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+    marginBottom: 16,
+  },
+  reviewsList: {
+    gap: 12,
+  },
+  reviewItem: {
+    backgroundColor: BG_ACCENT,
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: NEON_RED,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  reviewAuthor: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+  },
+  reviewRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  reviewRatingText: {
+    fontSize: 12,
+    color: NEON_RED,
+    fontWeight: "bold",
+  },
+  reviewDate: {
+    fontSize: 12,
+    color: TEXT_MUTED,
+    marginBottom: 6,
+  },
+  reviewContent: {
+    fontSize: 13,
+    color: TEXT_MUTED,
+    lineHeight: 18,
+  },
+  showMoreButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  showMoreText: {
+    fontSize: 13,
+    color: NEON_RED,
+    fontWeight: "600",
+  },
+  addButtonActive: {
+    borderColor: NEON_RED,
+    backgroundColor: "rgba(178, 7, 16, 0.2)",
   },
 });

@@ -60,6 +60,7 @@ export default function HomeScreen() {
   const [selectedMovie, setSelectedMovie] = useState<MovieDetail | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -142,6 +143,28 @@ export default function HomeScreen() {
     setModalVisible(true);
   };
 
+  const handleAddToFavorites = (movieId: number) => {
+    const newFavorites = new Set(favorites);
+    const isFavorite = newFavorites.has(movieId);
+    
+    if (isFavorite) {
+      newFavorites.delete(movieId);
+      // Opcional: Llamar al backend para eliminar
+      // fetch(`${API_URL}/api/favorites/${user?.id}/${movieId}`, {
+      //   method: 'DELETE',
+      // }).catch(err => console.error("Error removing favorite:", err));
+    } else {
+      newFavorites.add(movieId);
+      // Opcional: Llamar al backend para guardar
+      // fetch(`${API_URL}/api/favorites/${user?.id}`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ movieId })
+      // }).catch(err => console.error("Error adding favorite:", err));
+    }
+    setFavorites(newFavorites);
+  };
+
   const displayMovies =
     searchQuery.length > 1 && searchResults.length > 0
       ? searchResults
@@ -149,37 +172,50 @@ export default function HomeScreen() {
       ? genreMovies
       : trendingMovies;
 
-  const RankingCard = ({ movie }: { movie: RankingMovie }) => (
-    <TouchableOpacity 
-      style={styles.rankingCard}
-      onPress={() => handleMoviePress(movie)}
-    >
+  const RankingCard = ({ movie }: { movie: RankingMovie }) => {
+    const getBorderColor = () => {
+      switch (movie.position) {
+        case 1:
+          return "#FFD700"; // Oro
+        case 2:
+          return "#C0C0C0"; // Plata
+        case 3:
+          return "#CD7F32"; // Bronce
+        default:
+          return NEON_RED;
+      }
+    };
+
+    return (
+      <TouchableOpacity 
+        style={[styles.rankingCard, { borderColor: getBorderColor(), borderWidth: 3 }]}
+        onPress={() => handleMoviePress(movie)}
+      >
       <View style={styles.medalContainer}>
-        <Text style={styles.medalText}>{movie.medal}</Text>
-        <Text style={styles.positionText}>{movie.position}</Text>
-      </View>
-
-      <Image
-        source={{ uri: movie.poster_url }}
-        style={styles.rankingPoster}
-      />
-
-      <View style={styles.rankingInfo}>
-        <Text style={styles.rankingTitle} numberOfLines={2}>
-          {movie.title}
-        </Text>
-        <View style={styles.ratingContainer}>
-          <MaterialCommunityIcons
-            name="star"
-            size={16}
-            color={NEON_RED}
-          />
-          <Text style={styles.ratingText}>{movie.rating}</Text>
+          <Text style={styles.medalText}>{movie.medal}</Text>
         </View>
-        <Text style={styles.genreText}>{movie.genre}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+
+        <Image
+          source={{ uri: movie.poster_url }}
+          style={styles.rankingPoster}
+        />
+
+        <View style={styles.rankingInfo}>
+          <Text style={styles.rankingTitle} numberOfLines={2}>
+            {movie.title}
+          </Text>
+          <View style={styles.ratingContainer}>
+            <MaterialCommunityIcons
+              name="star"
+              size={14}
+              color={NEON_RED}
+            />
+            <Text style={styles.ratingText}>{movie.rating}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const MovieCard = ({ movie, onPress }: { movie: Movie; onPress: () => void }) => (
     <TouchableOpacity style={styles.movieCard} onPress={onPress}>
@@ -219,7 +255,16 @@ export default function HomeScreen() {
           <Text style={styles.heroTitle} numberOfLines={2}>
             {heroMovie.title}
           </Text>
-          <Text style={styles.heroGenre}>{heroMovie.description}</Text>
+          <View style={styles.heroMeta}>
+            <MaterialCommunityIcons
+              name="star"
+              size={16}
+              color={NEON_RED}
+            />
+            <Text style={styles.heroRating}>{heroMovie.rating}</Text>
+            <Text style={styles.heroDivider}>•</Text>
+            <Text style={styles.heroYear}>{heroMovie.release_date?.split('-')[0]}</Text>
+          </View>
           <View style={styles.heroButtons}>
             <TouchableOpacity style={styles.heroPlayButton}>
               <MaterialCommunityIcons
@@ -249,7 +294,8 @@ export default function HomeScreen() {
 
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔥 Tendencia</Text>
+        <Text style={styles.sectionTitle}>Tendencias</Text>
+        <Text style={styles.sectionSubtitle}>Lo más visto esta semana</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -345,7 +391,8 @@ export default function HomeScreen() {
         {/* Top 3 Semanal */}
         {!searchQuery && ranking.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🏆 Top 3 Esta Semana</Text>
+            <Text style={styles.sectionTitle}>Top Valoradas</Text>
+            <Text style={styles.sectionSubtitle}>Las más bien puntuadas</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -361,7 +408,7 @@ export default function HomeScreen() {
         {/* Géneros */}
         {!searchQuery && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Géneros</Text>
+            <Text style={styles.sectionTitle}>Explorar por Género</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -425,6 +472,63 @@ export default function HomeScreen() {
 
         {/* Espaciador */}
         <View style={{ height: 40 }} />
+
+        {/* Barra de Tareas Pendientes */}
+        <View style={styles.tasksSection}>
+          <Text style={styles.tasksSectionTitle}>Tareas Pendientes</Text>
+          <View style={styles.tasksList}>
+            <View style={styles.taskItem}>
+              <View style={styles.taskCheckbox}>
+                <Text style={styles.taskCheckmark}>✓</Text>
+              </View>
+              <Text style={styles.taskText}>Integración de TMDB API</Text>
+            </View>
+            <View style={styles.taskItem}>
+              <View style={styles.taskCheckbox}>
+                <Text style={styles.taskCheckmark}>✓</Text>
+              </View>
+              <Text style={styles.taskText}>Sistema de géneros</Text>
+            </View>
+            <View style={styles.taskItem}>
+              <View style={styles.taskCheckbox}>
+                <Text style={styles.taskCheckmark}>✓</Text>
+              </View>
+              <Text style={styles.taskText}>Búsqueda de películas</Text>
+            </View>
+            <View style={[styles.taskItem, styles.taskPending]}>
+              <View style={[styles.taskCheckbox, styles.taskCheckboxPending]}>
+                <Text style={styles.taskDot}>•</Text>
+              </View>
+              <Text style={styles.taskText}>Reseñas de películas</Text>
+            </View>
+            <View style={[styles.taskItem, styles.taskPending]}>
+              <View style={[styles.taskCheckbox, styles.taskCheckboxPending]}>
+                <Text style={styles.taskDot}>•</Text>
+              </View>
+              <Text style={styles.taskText}>Mi Lista (Favoritos)</Text>
+            </View>
+            <View style={[styles.taskItem, styles.taskPending]}>
+              <View style={[styles.taskCheckbox, styles.taskCheckboxPending]}>
+                <Text style={styles.taskDot}>•</Text>
+              </View>
+              <Text style={styles.taskText}>Historial de visualización</Text>
+            </View>
+            <View style={[styles.taskItem, styles.taskPending]}>
+              <View style={[styles.taskCheckbox, styles.taskCheckboxPending]}>
+                <Text style={styles.taskDot}>•</Text>
+              </View>
+              <Text style={styles.taskText}>Trailers de películas</Text>
+            </View>
+            <View style={[styles.taskItem, styles.taskPending]}>
+              <View style={[styles.taskCheckbox, styles.taskCheckboxPending]}>
+                <Text style={styles.taskDot}>•</Text>
+              </View>
+              <Text style={styles.taskText}>Recomendaciones personalizadas</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       {/* Modal de detalles */}
@@ -432,6 +536,8 @@ export default function HomeScreen() {
         visible={modalVisible}
         movie={selectedMovie}
         onClose={() => setModalVisible(false)}
+        onAddToFavorites={handleAddToFavorites}
+        isFavorite={selectedMovie ? favorites.has(selectedMovie.id) : false}
       />
     </>
   );
@@ -477,6 +583,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: TEXT_MUTED,
     marginBottom: 12,
+  },
+  heroMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  heroRating: {
+    fontSize: 14,
+    color: NEON_RED,
+    fontWeight: "bold",
+  },
+  heroDivider: {
+    color: TEXT_MUTED,
+    fontSize: 14,
+  },
+  heroYear: {
+    fontSize: 14,
+    color: TEXT_MUTED,
   },
   heroButtons: {
     flexDirection: "row",
@@ -575,44 +700,55 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: TEXT_LIGHT,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: TEXT_MUTED,
     marginBottom: 12,
+    fontWeight: "400",
   },
   rankingScroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
   },
   rankingCard: {
-    marginRight: 12,
+    marginRight: 16,
     alignItems: "center",
-    width: 140,
+    width: 130,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: BG_ACCENT,
   },
   medalContainer: {
     position: "absolute",
-    top: 8,
-    left: 8,
+    top: 0,
+    left: 0,
     alignItems: "center",
     zIndex: 10,
   },
   medalText: {
-    fontSize: 32,
+    fontSize: 28,
   },
   positionText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "bold",
-    color: NEON_RED,
+    color: "#000",
   },
   rankingPoster: {
-    width: 100,
-    height: 150,
-    borderRadius: 8,
+    width: "100%",
+    height: 160,
     backgroundColor: BG_ACCENT,
+    marginTop: 32,
   },
   rankingInfo: {
     width: "100%",
-    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: BG_DARK,
   },
   rankingTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: TEXT_LIGHT,
     marginBottom: 4,
@@ -620,17 +756,12 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    gap: 4,
   },
   ratingText: {
-    fontSize: 12,
-    color: NEON_RED,
-    marginLeft: 4,
-    fontWeight: "bold",
-  },
-  genreText: {
     fontSize: 11,
-    color: TEXT_MUTED,
+    color: NEON_RED,
+    fontWeight: "bold",
   },
   genreScroll: {
     marginHorizontal: -16,
@@ -697,5 +828,57 @@ const styles = StyleSheet.create({
     color: TEXT_MUTED,
     textAlign: "center",
     marginVertical: 32,
+  },
+  tasksSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    marginTop: 20,
+    backgroundColor: BG_ACCENT,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
+  tasksSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+    marginBottom: 12,
+  },
+  tasksList: {
+    gap: 8,
+  },
+  taskItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    opacity: 0.8,
+  },
+  taskPending: {
+    opacity: 0.6,
+  },
+  taskCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: "#4CAF50",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  taskCheckboxPending: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  taskCheckmark: {
+    color: TEXT_LIGHT,
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  taskDot: {
+    color: TEXT_MUTED,
+    fontSize: 16,
+  },
+  taskText: {
+    fontSize: 13,
+    color: TEXT_LIGHT,
+    flex: 1,
   },
 });

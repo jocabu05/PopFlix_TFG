@@ -404,6 +404,71 @@ app.get("/api/weekly-ranking/:userId", async (req, res) => {
   }
 });
 
+// ============ FAVORITOS ============
+// Obtener favoritos del usuario
+app.get("/api/favorites/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const connection = await pool.getConnection();
+    
+    const [favorites] = await connection.query(
+      "SELECT movie_id FROM user_favorites WHERE user_id = ? ORDER BY added_date DESC",
+      [userId]
+    );
+    
+    connection.release();
+    
+    res.json({
+      count: favorites.length,
+      favorites: favorites.map((f) => f.movie_id),
+    });
+  } catch (error) {
+    console.error("Error fetching favorites:", error);
+    res.status(500).json({ message: "Error al obtener favoritos", error: error.message });
+  }
+});
+
+// Añadir a favoritos
+app.post("/api/favorites/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { movieId } = req.body;
+    const connection = await pool.getConnection();
+    
+    await connection.query(
+      "INSERT INTO user_favorites (user_id, movie_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE added_date = NOW()",
+      [userId, movieId]
+    );
+    
+    connection.release();
+    
+    res.json({ message: "Película añadida a favoritos", movieId, userId });
+  } catch (error) {
+    console.error("Error adding favorite:", error);
+    res.status(500).json({ message: "Error al añadir a favoritos", error: error.message });
+  }
+});
+
+// Eliminar de favoritos
+app.delete("/api/favorites/:userId/:movieId", async (req, res) => {
+  try {
+    const { userId, movieId } = req.params;
+    const connection = await pool.getConnection();
+    
+    await connection.query(
+      "DELETE FROM user_favorites WHERE user_id = ? AND movie_id = ?",
+      [userId, movieId]
+    );
+    
+    connection.release();
+    
+    res.json({ message: "Película eliminada de favoritos", movieId, userId });
+  } catch (error) {
+    console.error("Error removing favorite:", error);
+    res.status(500).json({ message: "Error al eliminar de favoritos", error: error.message });
+  }
+});
+
 // Rutas no encontradas
 app.use((req, res) => {
   res.status(404).json({ message: "Ruta no encontrada" });

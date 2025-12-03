@@ -67,6 +67,31 @@ CREATE TABLE IF NOT EXISTS weekly_ranking (
   UNIQUE KEY unique_week_position (week_start, position)
 );
 
+-- Favoritos del usuario (Mi Lista)
+CREATE TABLE IF NOT EXISTS user_favorites (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  movie_id INT NOT NULL,
+  added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_user_favorite (user_id, movie_id),
+  INDEX idx_user_favorites (user_id)
+);
+
+-- Historial de visualización
+CREATE TABLE IF NOT EXISTS user_watch_history (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  movie_id INT NOT NULL,
+  watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  duration_watched INT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+  INDEX idx_user_history (user_id),
+  INDEX idx_watch_date (watched_at DESC)
+);
+
 -- Índices para mejores queries
 CREATE INDEX idx_movie_popularity ON movies(popularity DESC);
 CREATE INDEX idx_movie_rating ON movies(rating DESC);
