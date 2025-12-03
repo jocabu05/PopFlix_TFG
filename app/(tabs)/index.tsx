@@ -1,15 +1,17 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MovieModal, { MovieDetail } from "@/components/MovieModal";
 import { useAuthContext } from "@/context/AuthContext";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
+    ActivityIndicator,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const API_URL = "http://192.168.68.103:9999";
@@ -19,14 +21,17 @@ const NEON_RED = "#B20710";
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";
 
+const { width: screenWidth } = Dimensions.get("window");
+
 interface Movie {
   id: number;
   title: string;
   description: string;
   poster_url: string;
   rating: number;
-  genre: string;
-  platform: string;
+  popularity: number;
+  release_date?: string;
+  genre_ids?: number[];
 }
 
 interface RankingMovie extends Movie {
@@ -34,37 +39,52 @@ interface RankingMovie extends Movie {
   medal: string;
 }
 
+const genres = [
+  { name: "Drama", id: 18 },
+  { name: "Action", id: 28 },
+  { name: "Comedy", id: 35 },
+  { name: "Thriller", id: 53 },
+  { name: "Romance", id: 10749 },
+  { name: "Horror", id: 27 },
+];
+
 export default function HomeScreen() {
   const { user } = useAuthContext();
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
+  const [genreMovies, setGenreMovies] = useState<Movie[]>([]);
   const [ranking, setRanking] = useState<RankingMovie[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<{ name: string; id: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMovie, setSelectedMovie] = useState<MovieDetail | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const [searching, setSearching] = useState(false);
-
-  const genres = ["Drama", "Action", "Comedy", "Thriller", "Romance"];
 
   useEffect(() => {
     loadData();
   }, [user]);
 
   const loadData = async () => {
-    if (!user?.id) return;
-
     try {
       setLoading(true);
 
-      // Cargar películas
-      const moviesRes = await fetch(`${API_URL}/api/movies/${user.id}`);
-      const moviesData = await moviesRes.json();
-      setMovies(moviesData.movies || []);
+      // Cargar películas trending
+      const trendingRes = await fetch(`${API_URL}/api/movies/trending`);
+      const trendingData = await trendingRes.json();
+      setTrendingMovies(trendingData.movies || []);
 
-      // Cargar ranking semanal
-      const rankingRes = await fetch(`${API_URL}/api/weekly-ranking/${user.id}`);
+      // Cargar ranking semanal (top 3 trending)
+      const rankingRes = await fetch(`${API_URL}/api/weekly-ranking/${user?.id || "1"}`);
       const rankingData = await rankingRes.json();
       setRanking(rankingData.ranking || []);
+
+      // Cargar películas del primer género por defecto
+      if (genres.length > 0) {
+        const genreRes = await fetch(`${API_URL}/api/movies/genre/${genres[0].name}`);
+        const genreData = await genreRes.json();
+        setGenreMovies(genreData.movies || []);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -80,13 +100,11 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!user?.id) return;
-
     try {
       setSearching(true);
-      const res = await fetch(`${API_URL}/api/movies/search/${user.id}/${query}`);
+      const res = await fetch(`${API_URL}/api/movies/search/${query}`);
       const data = await res.json();
-      setSearchResults(data.results || []);
+      setSearchResults(data.movies || []);
     } catch (error) {
       console.error("Error searching:", error);
     } finally {
@@ -94,20 +112,20 @@ export default function HomeScreen() {
     }
   };
 
-  const handleGenreFilter = async (genre: string) => {
-    if (selectedGenre === genre) {
+  const handleGenreFilter = async (genreObj: { name: string; id: number }) => {
+    if (selectedGenre?.id === genreObj.id) {
       setSelectedGenre(null);
+      setGenreMovies([]);
       return;
     }
 
-    setSelectedGenre(genre);
-    if (!user?.id) return;
+    setSelectedGenre(genreObj);
 
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/movies/genre/${user.id}/${genre}`);
+      const res = await fetch(`${API_URL}/api/movies/genre/${genreObj.name}`);
       const data = await res.json();
-      setMovies(data.movies || []);
+      setGenreMovies(data.movies || []);
     } catch (error) {
       console.error("Error loading genre:", error);
     } finally {
@@ -115,13 +133,27 @@ export default function HomeScreen() {
     }
   };
 
+  const handleMoviePress = (movie: Movie) => {
+    setSelectedMovie({
+      ...movie,
+      duration: "2h 30m",
+      year: 2023,
+    });
+    setModalVisible(true);
+  };
+
   const displayMovies =
     searchQuery.length > 1 && searchResults.length > 0
       ? searchResults
-      : movies;
+      : selectedGenre
+      ? genreMovies
+      : trendingMovies;
 
   const RankingCard = ({ movie }: { movie: RankingMovie }) => (
-    <TouchableOpacity style={styles.rankingCard}>
+    <TouchableOpacity 
+      style={styles.rankingCard}
+      onPress={() => handleMoviePress(movie)}
+    >
       <View style={styles.medalContainer}>
         <Text style={styles.medalText}>{movie.medal}</Text>
         <Text style={styles.positionText}>{movie.position}</Text>
@@ -149,8 +181,8 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  const MovieCard = ({ movie }: { movie: Movie }) => (
-    <TouchableOpacity style={styles.movieCard}>
+  const MovieCard = ({ movie, onPress }: { movie: Movie; onPress: () => void }) => (
+    <TouchableOpacity style={styles.movieCard} onPress={onPress}>
       <Image
         source={{ uri: movie.poster_url }}
         style={styles.moviePoster}
@@ -168,7 +200,101 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  if (loading && movies.length === 0) {
+  const HeroBanner = () => {
+    const heroMovie = trendingMovies[0];
+    if (!heroMovie) return null;
+
+    return (
+      <TouchableOpacity 
+        style={styles.heroBanner}
+        onPress={() => handleMoviePress(heroMovie)}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{ uri: heroMovie.poster_url }}
+          style={styles.heroBannerImage}
+        />
+        <View style={styles.heroGradient} />
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle} numberOfLines={2}>
+            {heroMovie.title}
+          </Text>
+          <Text style={styles.heroGenre}>{heroMovie.description}</Text>
+          <View style={styles.heroButtons}>
+            <TouchableOpacity style={styles.heroPlayButton}>
+              <MaterialCommunityIcons
+                name="play"
+                size={20}
+                color={TEXT_LIGHT}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.heroPlayText}>Reproducir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.heroInfoButton}>
+              <MaterialCommunityIcons
+                name="information"
+                size={20}
+                color={NEON_RED}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const TrendingCarousel = () => {
+    const carouselMovies = trendingMovies.slice(1, 6);
+    if (carouselMovies.length === 0) return null;
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🔥 Tendencia</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.trendingScroll}
+          snapToAlignment="start"
+          snapToInterval={200}
+        >
+          {carouselMovies.map((movie) => (
+            <TouchableOpacity
+              key={movie.id}
+              style={styles.trendingCard}
+              onPress={() => handleMoviePress(movie)}
+            >
+              <Image
+                source={{ uri: movie.poster_url }}
+                style={styles.trendingImage}
+              />
+              <View style={styles.trendingOverlay}>
+                <MaterialCommunityIcons
+                  name="play-circle"
+                  size={40}
+                  color={NEON_RED}
+                />
+              </View>
+              <View style={styles.trendingInfo}>
+                <Text style={styles.trendingTitle} numberOfLines={1}>
+                  {movie.title}
+                </Text>
+                <View style={styles.trendingMeta}>
+                  <MaterialCommunityIcons
+                    name="star"
+                    size={12}
+                    color={NEON_RED}
+                  />
+                  <Text style={styles.trendingRating}>{movie.rating}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  if (loading && trendingMovies.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <ActivityIndicator size="large" color={NEON_RED} />
@@ -177,125 +303,137 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>
-          Bienvenido, {user?.name || "Usuario"}!
-        </Text>
-      </View>
+    <>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Hero Banner */}
+        <HeroBanner />
 
-      {/* Barra de búsqueda */}
-      <View style={styles.searchContainer}>
-        <MaterialCommunityIcons
-          name="magnify"
-          size={20}
-          color={TEXT_MUTED}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          placeholder="Buscar películas..."
-          placeholderTextColor={TEXT_MUTED}
-          style={styles.searchInput}
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => {
-              setSearchQuery("");
-              setSearchResults([]);
-            }}
-          >
-            <MaterialCommunityIcons
-              name="close"
-              size={20}
-              color={TEXT_MUTED}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Top 3 Semanal */}
-      {!searchQuery && ranking.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏆 Top 3 Esta Semana</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.rankingScroll}
-          >
-            {ranking.map((movie) => (
-              <RankingCard key={movie.id} movie={movie} />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Géneros */}
-      {!searchQuery && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Géneros</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.genreScroll}
-          >
-            {genres.map((genre) => (
-              <TouchableOpacity
-                key={genre}
-                style={[
-                  styles.genreChip,
-                  selectedGenre === genre && styles.genreChipActive,
-                ]}
-                onPress={() => handleGenreFilter(genre)}
-              >
-                <Text
-                  style={[
-                    styles.genreChipText,
-                    selectedGenre === genre && styles.genreChipTextActive,
-                  ]}
-                >
-                  {genre}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Grid de películas */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          {searchQuery.length > 1 ? "Resultados de búsqueda" : "Recomendadas"}
-        </Text>
-
-        {searching && (
-          <ActivityIndicator
-            size="small"
-            color={NEON_RED}
-            style={styles.loadingSpinner}
+        {/* Barra de búsqueda */}
+        <View style={styles.searchContainer}>
+          <MaterialCommunityIcons
+            name="magnify"
+            size={20}
+            color={TEXT_MUTED}
+            style={styles.searchIcon}
           />
-        )}
+          <TextInput
+            placeholder="Buscar películas..."
+            placeholderTextColor={TEXT_MUTED}
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                setSearchResults([]);
+              }}
+            >
+              <MaterialCommunityIcons
+                name="close"
+                size={20}
+                color={TEXT_MUTED}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {displayMovies.length > 0 ? (
-          <View style={styles.movieGrid}>
-            {displayMovies.map((movie) => (
-              <MovieCard key={movie.id} movie={movie} />
-            ))}
+        {/* Carrusel de tendencia */}
+        <TrendingCarousel />
+
+        {/* Top 3 Semanal */}
+        {!searchQuery && ranking.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🏆 Top 3 Esta Semana</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.rankingScroll}
+            >
+              {ranking.map((movie) => (
+                <RankingCard key={movie.id} movie={movie} />
+              ))}
+            </ScrollView>
           </View>
-        ) : (
-          <Text style={styles.noResults}>
-            {searchQuery.length > 1
-              ? "No se encontraron películas"
-              : "No hay películas disponibles"}
-          </Text>
         )}
-      </View>
 
-      {/* Espaciador */}
-      <View style={{ height: 40 }} />
-    </ScrollView>
+        {/* Géneros */}
+        {!searchQuery && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Géneros</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.genreScroll}
+            >
+              {genres.map((genre) => (
+                <TouchableOpacity
+                  key={genre.name}
+                  style={[
+                    styles.genreChip,
+                    selectedGenre?.id === genre.id && styles.genreChipActive,
+                  ]}
+                  onPress={() => handleGenreFilter(genre)}
+                >
+                  <Text
+                    style={[
+                      styles.genreChipText,
+                      selectedGenre?.id === genre.id && styles.genreChipTextActive,
+                    ]}
+                  >
+                    {genre.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Grid de películas */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {searchQuery.length > 1 ? "Resultados de búsqueda" : "Recomendadas"}
+          </Text>
+
+          {searching && (
+            <ActivityIndicator
+              size="small"
+              color={NEON_RED}
+              style={styles.loadingSpinner}
+            />
+          )}
+
+          {displayMovies.length > 0 ? (
+            <View style={styles.movieGrid}>
+              {displayMovies.map((movie) => (
+                <MovieCard 
+                  key={movie.id} 
+                  movie={movie}
+                  onPress={() => handleMoviePress(movie)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noResults}>
+              {searchQuery.length > 1
+                ? "No se encontraron películas"
+                : "No hay películas disponibles"}
+            </Text>
+          )}
+        </View>
+
+        {/* Espaciador */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* Modal de detalles */}
+      <MovieModal
+        visible={modalVisible}
+        movie={selectedMovie}
+        onClose={() => setModalVisible(false)}
+      />
+    </>
   );
 }
 
@@ -304,15 +442,112 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG_DARK,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
+  heroBanner: {
+    width: screenWidth,
+    height: 400,
+    position: "relative",
+    marginBottom: 24,
   },
-  greeting: {
-    fontSize: 24,
+  heroBannerImage: {
+    width: "100%",
+    height: "100%",
+  },
+  heroGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+    backgroundColor: BG_DARK,
+    opacity: 0.9,
+  },
+  heroContent: {
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    right: 16,
+  },
+  heroTitle: {
+    fontSize: 28,
     fontWeight: "bold",
     color: TEXT_LIGHT,
+    marginBottom: 8,
+  },
+  heroGenre: {
+    fontSize: 14,
+    color: TEXT_MUTED,
+    marginBottom: 12,
+  },
+  heroButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  heroPlayButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: NEON_RED,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  heroPlayText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+  },
+  heroInfoButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 6,
+  },
+  trendingScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  trendingCard: {
+    marginRight: 12,
+    width: 180,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  trendingImage: {
+    width: "100%",
+    height: 240,
+    backgroundColor: BG_ACCENT,
+  },
+  trendingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+  trendingInfo: {
+    padding: 12,
+    backgroundColor: BG_ACCENT,
+  },
+  trendingTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: TEXT_LIGHT,
+    marginBottom: 6,
+  },
+  trendingMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  trendingRating: {
+    fontSize: 12,
+    color: NEON_RED,
+    fontWeight: "bold",
   },
   searchContainer: {
     flexDirection: "row",

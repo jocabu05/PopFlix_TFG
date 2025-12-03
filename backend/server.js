@@ -2,6 +2,7 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
+const { getTrendingMovies, getMoviesByGenre, searchMovies, getMovieDetails, GENRE_IDS } = require("./tmdb-service");
 
 const app = express();
 const PORT = 9999;
@@ -299,57 +300,94 @@ app.post("/api/user/:userId/platforms", async (req, res) => {
     return res.status(500).json({ message: "Error al guardar plataformas", error: error.message });
   }
 });
+// ============ PELÍCULAS (TMDB Real) ============
+// Caché de películas para evitar llamadas excesivas
+let moviesCache = {};
+let cacheTimeout = 60 * 60 * 1000; // 1 hora
 
-// ============ PELÍCULAS (Mock Data) ============
-// Por ahora usamos datos de prueba. Luego integraremos TMDB API
-const mockMovies = [
-  {
-    id: 1,
-    title: "The Shawshank Redemption",
-    description: "Two imprisoned men bond over a number of years...",
-    poster_url: "https://image.tmdb.org/t/p/w342/q6y0aKCQyIE9zDSCpf2H5BpJLhE.jpg",
-    rating: 9.3,
-    genre: "Drama",
-    platform: "Netflix"
-  },
-  {
-    id: 2,
-    title: "The Godfather",
-    description: "The aging patriarch of an organized crime dynasty...",
-    poster_url: "https://image.tmdb.org/t/p/w342/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-    rating: 9.2,
-    genre: "Crime",
-    platform: "HBO Max"
-  },
-  {
-    id: 3,
-    title: "The Dark Knight",
-    description: "When the menace known as the Joker wreaks havoc...",
-    poster_url: "https://image.tmdb.org/t/p/w342/1hqwGsggkxwifsDMEH61F4v8zM.jpg",
-    rating: 9.0,
-    genre: "Action",
-    platform: "Netflix"
-  }
-];
-
-// Obtener películas para el usuario
-app.get("/api/movies/:userId", async (req, res) => {
+// Obtener películas trending
+app.get("/api/movies/trending", async (req, res) => {
   try {
+    const movies = await getTrendingMovies();
     res.status(200).json({ 
-      movies: mockMovies,
-      count: mockMovies.length,
-      message: "Películas obtenidas exitosamente"
+      movies,
+      count: movies.length,
+      message: "Películas trending obtenidas"
     });
   } catch (error) {
-    console.error("Error fetching movies:", error);
+    console.error("Error fetching trending:", error);
     res.status(500).json({ message: "Error al obtener películas", error: error.message });
   }
 });
 
-// Obtener ranking semanal (Top 3)
+// Obtener películas por género
+app.get("/api/movies/genre/:genre", async (req, res) => {
+  try {
+    const { genre } = req.params;
+    const genreId = GENRE_IDS[genre];
+    
+    if (!genreId) {
+      return res.status(400).json({ message: "Género no válido" });
+    }
+    
+    const movies = await getMoviesByGenre(genreId);
+    res.status(200).json({ 
+      movies,
+      count: movies.length,
+      message: `Películas de ${genre} obtenidas`
+    });
+  } catch (error) {
+    console.error("Error fetching genre:", error);
+    res.status(500).json({ message: "Error al obtener películas", error: error.message });
+  }
+});
+
+// Buscar películas
+app.get("/api/movies/search/:query", async (req, res) => {
+  try {
+    const { query } = req.params;
+    
+    if (query.length < 2) {
+      return res.status(400).json({ message: "Búsqueda debe tener al menos 2 caracteres" });
+    }
+    
+    const movies = await searchMovies(query);
+    res.status(200).json({
+      movies,
+      count: movies.length,
+      message: "Búsqueda completada"
+    });
+  } catch (error) {
+    console.error("Error searching:", error);
+    res.status(500).json({ message: "Error al buscar películas", error: error.message });
+  }
+});
+
+// Obtener detalles de película
+app.get("/api/movies/:movieId/details", async (req, res) => {
+  try {
+    const { movieId } = req.params;
+    const details = await getMovieDetails(movieId);
+    
+    if (!details) {
+      return res.status(404).json({ message: "Película no encontrada" });
+    }
+    
+    res.status(200).json({
+      movie: details,
+      message: "Detalles obtenidos"
+    });
+  } catch (error) {
+    console.error("Error fetching details:", error);
+    res.status(500).json({ message: "Error al obtener detalles", error: error.message });
+  }
+});
+
+// Obtener ranking semanal (Top 3 trending)
 app.get("/api/weekly-ranking/:userId", async (req, res) => {
   try {
-    const ranking = mockMovies.slice(0, 3).map((movie, index) => ({
+    const movies = await getTrendingMovies();
+    const ranking = movies.slice(0, 3).map((movie, index) => ({
       ...movie,
       position: index + 1,
       medal: index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"
@@ -363,44 +401,6 @@ app.get("/api/weekly-ranking/:userId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching ranking:", error);
     res.status(500).json({ message: "Error al obtener ranking", error: error.message });
-  }
-});
-
-// Buscar películas
-app.get("/api/movies/search/:userId/:query", async (req, res) => {
-  try {
-    const { query } = req.params;
-    const results = mockMovies.filter(m => 
-      m.title.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    res.status(200).json({
-      results,
-      count: results.length,
-      message: "Búsqueda completada"
-    });
-  } catch (error) {
-    console.error("Error searching movies:", error);
-    res.status(500).json({ message: "Error al buscar películas", error: error.message });
-  }
-});
-
-// Obtener películas por género
-app.get("/api/movies/genre/:userId/:genre", async (req, res) => {
-  try {
-    const { genre } = req.params;
-    const movies = mockMovies.filter(m => 
-      m.genre.toLowerCase() === genre.toLowerCase()
-    );
-    
-    res.status(200).json({
-      movies,
-      count: movies.length,
-      message: "Películas del género obtenidas"
-    });
-  } catch (error) {
-    console.error("Error fetching genre movies:", error);
-    res.status(500).json({ message: "Error al obtener películas del género", error: error.message });
   }
 });
 
