@@ -1,5 +1,5 @@
 @echo off
-REM Auto-tag script - Crea tags automáticos cada hora para snapshots del proyecto
+REM Auto-tag script - Crea tags automáticos cada hora con títulos descriptivos
 
 cd C:\popFlix_TFG
 
@@ -34,13 +34,16 @@ if defined HAS_CHANGES (
     set HH=%DT:~8,2%
     set MIN=%DT:~10,2%
     
-    set TAG_NAME=snapshot-%YYYY%%MM%%DD%-%HH%%MIN%
-    git tag -a %TAG_NAME% -m "Snapshot: %mydate% %mytime%"
+    REM Nombre del tag con formato descriptivo
+    set TAG_NAME=snapshot-%YYYY%%MM%%DD%T%HH%%MIN%
+    
+    REM Mensaje descriptivo con fecha y hora en español
+    git tag -a %TAG_NAME% -m "Snapshot del Proyecto - %mydate% a las %mytime%"
     
     git push
     git push --tags
     
-    echo [%mydate% %mytime%] Tag %TAG_NAME% creado y enviado
+    echo [%mydate% %mytime%] Tag %TAG_NAME% creado y enviado a GitHub
     
     set HAS_CHANGES=
 )
