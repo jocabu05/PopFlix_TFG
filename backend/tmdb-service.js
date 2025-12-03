@@ -144,10 +144,90 @@ async function getMovieDetails(movieId) {
   }
 }
 
+// Función para obtener reseñas reales de TMDB
+async function getMovieReviews(movieId) {
+  try {
+    const response = await axios.get(
+      `${TMDB_BASE_URL}/movie/${movieId}/reviews`,
+      {
+        params: {
+          api_key: TMDB_API_KEY,
+          language: "es-ES",
+        },
+      }
+    );
+
+    return response.data.results.map((review) => ({
+      id: review.id,
+      author: review.author,
+      rating: review.author_details?.rating || null,
+      content: review.content,
+      date: new Date(review.created_at).toLocaleDateString("es-ES"),
+      url: review.url,
+      source: "tmdb",
+    }));
+  } catch (error) {
+    console.error("Error fetching movie reviews:", error.message);
+    return [];
+  }
+}
+
+// Reseñas ficticias realistas de usuarios
+function getFictionalReviews() {
+  const fictionalReviews = [
+    {
+      id: "fict_1",
+      author: "María García",
+      rating: 9,
+      content: "Película excelente, muy bien dirigida. Los actores fueron increíbles y la trama te mantiene en suspenso de principio a fin. Definitivamente la volvería a ver.",
+      date: "Hace 3 días",
+      source: "user",
+    },
+    {
+      id: "fict_2",
+      author: "Carlos López",
+      rating: 8,
+      content: "Muy buena. La cinematografía es hermosa y la música es perfecta. Solo le faltan algunas escenas más de acción, pero en general es recomendable.",
+      date: "Hace 1 semana",
+      source: "user",
+    },
+    {
+      id: "fict_3",
+      author: "Ana Rodríguez",
+      rating: 7,
+      content: "Está bien, pero no es lo mejor que he visto. La primera mitad es lenta, pero la segunda parte mejora bastante. Vale la pena verla.",
+      date: "Hace 2 semanas",
+      source: "user",
+    },
+    {
+      id: "fict_4",
+      author: "Juan Martínez",
+      rating: 9,
+      content: "¡Masterpiece! No me esperaba que fuera tan buena. Los giros en la trama son impresionantes. Totalmente recomendada.",
+      date: "Hace 1 mes",
+      source: "user",
+    },
+    {
+      id: "fict_5",
+      author: "Sofia Chen",
+      rating: 8,
+      content: "Sorprendente. Pensé que sería una típica película más, pero tiene originalidad. Los personajes están bien desarrollados.",
+      date: "Hace 2 meses",
+      source: "user",
+    },
+  ];
+
+  // Retornar 2-3 reseñas aleatorias para variar
+  const shuffled = fictionalReviews.sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.floor(Math.random() * 2) + 2);
+}
+
 module.exports = {
   getTrendingMovies,
   getMoviesByGenre,
   searchMovies,
   getMovieDetails,
+  getMovieReviews,
+  getFictionalReviews,
   GENRE_IDS,
 };

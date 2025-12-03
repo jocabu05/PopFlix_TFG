@@ -1,12 +1,15 @@
+import { useAuth } from "@/hooks/useAuth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+    ActivityIndicator,
     Dimensions,
     Image,
     Modal,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
@@ -16,6 +19,7 @@ const BG_ACCENT = "#1A1A1A";
 const NEON_RED = "#B20710";
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";
+const API_URL = "http://192.168.68.103:9999";
 
 export interface MovieDetail {
   id: number;
@@ -32,7 +36,7 @@ export interface MovieDetail {
 interface Review {
   id: string;
   author: string;
-  rating: number;
+  rating: number | null;
   content: string;
   date: string;
 }
@@ -55,35 +59,103 @@ export default function MovieModal({
   isFavorite = false 
 }: MovieModalProps) {
   const [showAllReviews, setShowAllReviews] = useState(false);
-  
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(8);
+  const [reviewContent, setReviewContent] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Cargar reseñas reales de TMDB cuando el modal se abre
+  useEffect(() => {
+    if (!visible || !movie) {
+      return;
+    }
+
+    const loadReviews = async () => {
+      try {
+        setLoadingReviews(true);
+        const response = await fetch(`${API_URL}/api/movies/${movie.id}/reviews`);
+        const data = await response.json();
+        setReviews(data.reviews || []);
+      } catch (error) {
+        console.error("Error loading reviews:", error);
+        setReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
+    loadReviews();
+  }, [visible, movie?.id]);
+
+  const submitReview = async () => {
+    if (!movie) return;
+    
+    if (reviewContent.trim().length < 10) {
+      alert("La reseña debe tener al menos 10 caracteres");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      const { user } = useAuth();
+      const userId = user?.id;
+      
+      if (!userId) {
+        alert("Debes estar logged in para publicar una reseña");
+        setSubmittingReview(false);
+        return;
+      }
+      
+      const response = await fetch(`${API_URL}/api/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          movieId: movie.id,
+          rating: reviewRating,
+          content: reviewContent
+        })
+      });
+
+      if (response.ok) {
+        alert("¡Reseña publicada exitosamente!");
+        setReviewContent("");
+        setReviewRating(8);
+        setShowReviewForm(false);
+        // Recargar reseñas
+        loadReviews();
+      } else {
+        alert("Error al publicar la reseña");
+      }
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      alert("Error al publicar la reseña");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const loadReviews = async () => {
+    if (!movie) return;
+    
+    try {
+      setLoadingReviews(true);
+      const response = await fetch(`${API_URL}/api/movies/${movie.id}/reviews`);
+      const data = await response.json();
+      setReviews(data.reviews || []);
+    } catch (error) {
+      console.error("Error loading reviews:", error);
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
   if (!movie) return null;
 
-  // Mock reviews - en producción vendrían de la API
-  const mockReviews: Review[] = [
-    {
-      id: "1",
-      author: "Juan García",
-      rating: 9,
-      content: "Una película increíble, recomendada sin dudas. La cinematografía es hermosa y la trama mantiene el suspenso.",
-      date: "Hace 2 días"
-    },
-    {
-      id: "2",
-      author: "María López",
-      rating: 8,
-      content: "Muy buena película. Los actores hicieron un excelente trabajo.",
-      date: "Hace 1 semana"
-    },
-    {
-      id: "3",
-      author: "Carlos Rodríguez",
-      rating: 7,
-      content: "Está bien, pero esperaba más. La segunda mitad es mejor que la primera.",
-      date: "Hace 10 días"
-    },
-  ];
-
-  const displayedReviews = showAllReviews ? mockReviews : mockReviews.slice(0, 1);
+  const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 1);
 
 
   return (
@@ -199,32 +271,40 @@ export default function MovieModal({
             {/* Reseñas */}
             <View style={styles.reviewsContainer}>
               <Text style={styles.reviewsTitle}>Reseñas</Text>
-              <View style={styles.reviewsList}>
-                {displayedReviews.map((review) => (
-                  <View key={review.id} style={styles.reviewItem}>
-                    <View style={styles.reviewHeader}>
-                      <Text style={styles.reviewAuthor}>{review.author}</Text>
-                      <View style={styles.reviewRating}>
-                        <MaterialCommunityIcons
-                          name="star"
-                          size={14}
-                          color={NEON_RED}
-                        />
-                        <Text style={styles.reviewRatingText}>{review.rating}/10</Text>
+              {loadingReviews ? (
+                <ActivityIndicator size="large" color={NEON_RED} style={{ marginVertical: 20 }} />
+              ) : reviews.length > 0 ? (
+                <View style={styles.reviewsList}>
+                  {displayedReviews.map((review) => (
+                    <View key={review.id} style={styles.reviewItem}>
+                      <View style={styles.reviewHeader}>
+                        <Text style={styles.reviewAuthor}>{review.author}</Text>
+                        {review.rating !== null && (
+                          <View style={styles.reviewRating}>
+                            <MaterialCommunityIcons
+                              name="star"
+                              size={14}
+                              color={NEON_RED}
+                            />
+                            <Text style={styles.reviewRatingText}>{review.rating}/10</Text>
+                          </View>
+                        )}
                       </View>
+                      <Text style={styles.reviewDate}>{review.date}</Text>
+                      <Text style={styles.reviewContent}>{review.content}</Text>
                     </View>
-                    <Text style={styles.reviewDate}>{review.date}</Text>
-                    <Text style={styles.reviewContent}>{review.content}</Text>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noReviewsText}>No hay reseñas disponibles para esta película</Text>
+              )}
               
-              {mockReviews.length > 1 && !showAllReviews && (
+              {reviews.length > 1 && !showAllReviews && (
                 <TouchableOpacity 
                   style={styles.showMoreButton}
                   onPress={() => setShowAllReviews(true)}
                 >
-                  <Text style={styles.showMoreText}>Ver más reseñas ({mockReviews.length})</Text>
+                  <Text style={styles.showMoreText}>Ver más reseñas ({reviews.length})</Text>
                   <MaterialCommunityIcons
                     name="chevron-down"
                     size={20}
@@ -233,7 +313,7 @@ export default function MovieModal({
                 </TouchableOpacity>
               )}
 
-              {showAllReviews && mockReviews.length > 1 && (
+              {showAllReviews && reviews.length > 1 && (
                 <TouchableOpacity 
                   style={styles.showMoreButton}
                   onPress={() => setShowAllReviews(false)}
@@ -245,6 +325,79 @@ export default function MovieModal({
                     color={NEON_RED}
                   />
                 </TouchableOpacity>
+              )}
+
+              {/* Botón para crear reseña */}
+              <TouchableOpacity 
+                style={styles.createReviewButton}
+                onPress={() => setShowReviewForm(!showReviewForm)}
+              >
+                <MaterialCommunityIcons
+                  name={showReviewForm ? "close" : "pencil"}
+                  size={18}
+                  color={TEXT_LIGHT}
+                />
+                <Text style={styles.createReviewButtonText}>
+                  {showReviewForm ? "Cancelar" : "Escribir reseña"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Formulario de crear reseña */}
+              {showReviewForm && (
+                <View style={styles.reviewFormContainer}>
+                  <Text style={styles.reviewFormTitle}>Tu reseña</Text>
+                  
+                  {/* Rating Slider */}
+                  <View style={styles.ratingContainer}>
+                    <Text style={styles.ratingLabel}>Calificación: {reviewRating}/10</Text>
+                    <View style={styles.ratingButtons}>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+                        <TouchableOpacity
+                          key={rating}
+                          style={[
+                            styles.ratingButton,
+                            reviewRating === rating && styles.ratingButtonActive
+                          ]}
+                          onPress={() => setReviewRating(rating)}
+                        >
+                          <Text style={styles.ratingButtonText}>{rating}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Text Input */}
+                  <TextInput
+                    style={styles.reviewInput}
+                    placeholder="Escribe tu reseña aquí (mínimo 10 caracteres)..."
+                    placeholderTextColor={TEXT_MUTED}
+                    multiline={true}
+                    numberOfLines={4}
+                    value={reviewContent}
+                    onChangeText={setReviewContent}
+                    maxLength={500}
+                  />
+
+                  <Text style={styles.charCount}>
+                    {reviewContent.length}/500
+                  </Text>
+
+                  {/* Submit Button */}
+                  <TouchableOpacity 
+                    style={[
+                      styles.submitButton,
+                      submittingReview && styles.submitButtonDisabled
+                    ]}
+                    onPress={submitReview}
+                    disabled={submittingReview}
+                  >
+                    {submittingReview ? (
+                      <ActivityIndicator size="small" color={TEXT_LIGHT} />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Publicar reseña</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
 
@@ -460,6 +613,13 @@ const styles = StyleSheet.create({
     color: TEXT_LIGHT,
     marginBottom: 16,
   },
+  noReviewsText: {
+    fontSize: 14,
+    color: TEXT_MUTED,
+    textAlign: "center",
+    paddingVertical: 16,
+    fontStyle: "italic",
+  },
   reviewsList: {
     gap: 12,
   },
@@ -512,6 +672,101 @@ const styles = StyleSheet.create({
   showMoreText: {
     fontSize: 13,
     color: NEON_RED,
+    fontWeight: "600",
+  },
+  createReviewButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: NEON_RED,
+    borderRadius: 8,
+    gap: 8,
+  },
+  createReviewButtonText: {
+    fontSize: 14,
+    color: TEXT_LIGHT,
+    fontWeight: "600",
+  },
+  reviewFormContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: BG_ACCENT,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: NEON_RED,
+  },
+  reviewFormTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+    marginBottom: 12,
+  },
+  ratingContainer: {
+    marginBottom: 16,
+  },
+  ratingLabel: {
+    fontSize: 13,
+    color: TEXT_LIGHT,
+    marginBottom: 8,
+    fontWeight: "600",
+  },
+  ratingButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  ratingButton: {
+    width: "18%",
+    paddingVertical: 8,
+    backgroundColor: BG_DARK,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: TEXT_MUTED,
+    alignItems: "center",
+  },
+  ratingButtonActive: {
+    backgroundColor: NEON_RED,
+    borderColor: NEON_RED,
+  },
+  ratingButtonText: {
+    fontSize: 12,
+    color: TEXT_LIGHT,
+    fontWeight: "600",
+  },
+  reviewInput: {
+    backgroundColor: BG_DARK,
+    color: TEXT_LIGHT,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: TEXT_MUTED,
+    textAlignVertical: "top",
+    minHeight: 100,
+  },
+  charCount: {
+    fontSize: 11,
+    color: TEXT_MUTED,
+    marginBottom: 12,
+    textAlign: "right",
+  },
+  submitButton: {
+    backgroundColor: NEON_RED,
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: TEXT_LIGHT,
+    fontSize: 14,
     fontWeight: "600",
   },
   addButtonActive: {

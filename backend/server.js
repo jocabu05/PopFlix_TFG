@@ -2,7 +2,7 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
-const { getTrendingMovies, getMoviesByGenre, searchMovies, getMovieDetails, GENRE_IDS } = require("./tmdb-service");
+const { getTrendingMovies, getMoviesByGenre, searchMovies, getMovieDetails, getMovieReviews, getFictionalReviews, GENRE_IDS } = require("./tmdb-service");
 
 const app = express();
 const PORT = 9999;
@@ -44,6 +44,16 @@ const isValidPassword = (password) => {
 // Health check - para verificar que el servidor está activo
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Backend está funcionando" });
+});
+
+// Endpoint para limpiar caché (solo en desarrollo)
+app.post("/api/clear-cache", (req, res) => {
+  moviesCache = {
+    trending: { data: [], timestamp: 0 },
+    genres: {},
+    search: {}
+  };
+  res.status(200).json({ message: "Caché limpiado" });
 });
 
 // ============ PLATAFORMAS ============
@@ -301,17 +311,54 @@ app.post("/api/user/:userId/platforms", async (req, res) => {
   }
 });
 // ============ PELÍCULAS (TMDB Real) ============
-// Caché de películas para evitar llamadas excesivas
-let moviesCache = {};
-let cacheTimeout = 60 * 60 * 1000; // 1 hora
+// Caché mejorado de películas con variación por página
+let moviesCache = {
+  trending: { data: [], timestamp: 0 },
+  genres: {},
+  search: {}
+};
+const cacheTimeout = 5 * 60 * 1000; // 5 minutos para desarrollo (era 1 hora)
 
-// Obtener películas trending
+// Función para verificar si caché es válido
+function isCacheValid(timestamp) {
+  return timestamp && (Date.now() - timestamp < cacheTimeout);
+}
+
+// Obtener películas trending con paginación
 app.get("/api/movies/trending", async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = 10;
+
+    // Verificar caché
+    if (isCacheValid(moviesCache.trending.timestamp)) {
+      const allMovies = moviesCache.trending.data;
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const paginatedMovies = allMovies.slice(start, end);
+
+      return res.status(200).json({
+        movies: paginatedMovies,
+        count: paginatedMovies.length,
+        page: page,
+        totalPages: Math.ceil(allMovies.length / pageSize),
+        message: "Películas trending obtenidas"
+      });
+    }
+
+    // Si caché expiró, obtener nuevas películas
     const movies = await getTrendingMovies();
-    res.status(200).json({ 
-      movies,
-      count: movies.length,
+    moviesCache.trending = { data: movies, timestamp: Date.now() };
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedMovies = movies.slice(start, end);
+
+    res.status(200).json({
+      movies: paginatedMovies,
+      count: paginatedMovies.length,
+      page: page,
+      totalPages: Math.ceil(movies.length / pageSize),
       message: "Películas trending obtenidas"
     });
   } catch (error) {
@@ -320,20 +367,51 @@ app.get("/api/movies/trending", async (req, res) => {
   }
 });
 
-// Obtener películas por género
+// Obtener películas por género con caché por género
 app.get("/api/movies/genre/:genre", async (req, res) => {
   try {
     const { genre } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = 10;
     const genreId = GENRE_IDS[genre];
-    
+
     if (!genreId) {
       return res.status(400).json({ message: "Género no válido" });
     }
-    
+
+    // Verificar caché por género
+    if (!moviesCache.genres[genreId]) {
+      moviesCache.genres[genreId] = { data: [], timestamp: 0 };
+    }
+
+    if (isCacheValid(moviesCache.genres[genreId].timestamp)) {
+      const allMovies = moviesCache.genres[genreId].data;
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const paginatedMovies = allMovies.slice(start, end);
+
+      return res.status(200).json({
+        movies: paginatedMovies,
+        count: paginatedMovies.length,
+        page: page,
+        totalPages: Math.ceil(allMovies.length / pageSize),
+        message: `Películas de ${genre} obtenidas`
+      });
+    }
+
+    // Si caché expiró, obtener nuevas películas
     const movies = await getMoviesByGenre(genreId);
-    res.status(200).json({ 
-      movies,
-      count: movies.length,
+    moviesCache.genres[genreId] = { data: movies, timestamp: Date.now() };
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedMovies = movies.slice(start, end);
+
+    res.status(200).json({
+      movies: paginatedMovies,
+      count: paginatedMovies.length,
+      page: page,
+      totalPages: Math.ceil(movies.length / pageSize),
       message: `Películas de ${genre} obtenidas`
     });
   } catch (error) {
@@ -346,15 +424,47 @@ app.get("/api/movies/genre/:genre", async (req, res) => {
 app.get("/api/movies/search/:query", async (req, res) => {
   try {
     const { query } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = 10;
     
     if (query.length < 2) {
       return res.status(400).json({ message: "Búsqueda debe tener al menos 2 caracteres" });
     }
-    
+
+    // Verificar caché de búsqueda
+    const cacheKey = `${query}_${page}`;
+    if (!moviesCache.search[query]) {
+      moviesCache.search[query] = { data: [], timestamp: 0 };
+    }
+
+    if (isCacheValid(moviesCache.search[query].timestamp)) {
+      const allMovies = moviesCache.search[query].data;
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const paginatedMovies = allMovies.slice(start, end);
+
+      return res.status(200).json({
+        movies: paginatedMovies,
+        count: paginatedMovies.length,
+        page: page,
+        totalPages: Math.ceil(allMovies.length / pageSize),
+        message: "Búsqueda completada"
+      });
+    }
+
+    // Si caché expiró, obtener nuevas películas
     const movies = await searchMovies(query);
+    moviesCache.search[query] = { data: movies, timestamp: Date.now() };
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedMovies = movies.slice(start, end);
+
     res.status(200).json({
-      movies,
-      count: movies.length,
+      movies: paginatedMovies,
+      count: paginatedMovies.length,
+      page: page,
+      totalPages: Math.ceil(movies.length / pageSize),
       message: "Búsqueda completada"
     });
   } catch (error) {
@@ -380,6 +490,100 @@ app.get("/api/movies/:movieId/details", async (req, res) => {
   } catch (error) {
     console.error("Error fetching details:", error);
     res.status(500).json({ message: "Error al obtener detalles", error: error.message });
+  }
+});
+
+// Obtener reseñas de película (TMDB + Usuarios + Ficticias)
+app.get("/api/movies/:movieId/reviews", async (req, res) => {
+  try {
+    const { movieId } = req.params;
+    
+    // 1. Obtener reseñas de TMDB
+    const tmdbReviews = await getMovieReviews(movieId);
+    
+    // 2. Obtener reseñas de usuarios de la base de datos
+    const connection = await pool.getConnection();
+    const [userReviews] = await connection.query(
+      `SELECT ur.id, u.firstName as author, ur.rating, ur.content, 
+              DATE_FORMAT(ur.created_at, '%d/%m/%Y') as date
+       FROM user_reviews ur
+       JOIN users u ON ur.user_id = u.id
+       WHERE ur.movie_id = ?
+       ORDER BY ur.created_at DESC
+       LIMIT 10`,
+      [movieId]
+    );
+    connection.release();
+    
+    // Formatear reseñas de usuario
+    const formattedUserReviews = userReviews.map(review => ({
+      id: `user_${review.id}`,
+      author: review.author,
+      rating: parseFloat(review.rating),
+      content: review.content,
+      date: review.date,
+      source: "user",
+    }));
+    
+    // 3. Combinar todas las reseñas: usuario (prioridad) + TMDB + ficticias
+    let allReviews = [...formattedUserReviews, ...tmdbReviews];
+    
+    // Si no hay suficientes reseñas, agregar ficticias
+    if (allReviews.length === 0) {
+      allReviews = getFictionalReviews();
+    } else if (allReviews.length < 3) {
+      const fictionalToAdd = getFictionalReviews();
+      allReviews = [...allReviews, ...fictionalToAdd.slice(0, 3 - allReviews.length)];
+    }
+    
+    res.status(200).json({
+      reviews: allReviews,
+      count: allReviews.length,
+      message: "Reseñas obtenidas"
+    });
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    res.status(500).json({ message: "Error al obtener reseñas", error: error.message });
+  }
+});
+
+// Crear reseña de usuario
+app.post("/api/reviews", async (req, res) => {
+  try {
+    const { userId, movieId, rating, content } = req.body;
+
+    // Validaciones
+    if (!userId || !movieId || !rating || !content) {
+      return res.status(400).json({ message: "Datos incompletos" });
+    }
+
+    if (rating < 1 || rating > 10) {
+      return res.status(400).json({ message: "Rating debe estar entre 1 y 10" });
+    }
+
+    if (content.length < 10) {
+      return res.status(400).json({ message: "La reseña debe tener al menos 10 caracteres" });
+    }
+
+    const connection = await pool.getConnection();
+
+    // Insertar o actualizar reseña
+    const [result] = await connection.query(
+      `INSERT INTO user_reviews (user_id, movie_id, rating, content) 
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE rating = ?, content = ?, updated_at = NOW()`,
+      [userId, movieId, rating, content, rating, content]
+    );
+
+    connection.release();
+
+    return res.status(201).json({
+      message: "Reseña guardada exitosamente",
+      reviewId: result.insertId || result.affectedRows,
+    });
+  } catch (error) {
+    console.error("Error creating review:", error);
+    return res.status(500).json({ message: "Error al guardar reseña", error: error.message });
   }
 });
 

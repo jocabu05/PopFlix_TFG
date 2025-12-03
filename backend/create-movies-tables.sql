@@ -92,6 +92,23 @@ CREATE TABLE IF NOT EXISTS user_watch_history (
   INDEX idx_watch_date (watched_at DESC)
 );
 
+-- Reseñas de usuarios
+CREATE TABLE IF NOT EXISTS user_reviews (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  movie_id INT NOT NULL,
+  rating DECIMAL(2, 1) NOT NULL,
+  content LONGTEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_user_movie_review (user_id, movie_id),
+  INDEX idx_movie_reviews (movie_id),
+  INDEX idx_user_reviews (user_id),
+  INDEX idx_review_date (created_at DESC)
+);
+
 -- Índices para mejores queries
 CREATE INDEX idx_movie_popularity ON movies(popularity DESC);
 CREATE INDEX idx_movie_rating ON movies(rating DESC);

@@ -61,6 +61,11 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [searching, setSearching] = useState(false);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  
+  // Pagination states
+  const [trendingPage, setTrendingPage] = useState(1);
+  const [genrePage, setGenrePage] = useState(1);
+  const [searchPage, setSearchPage] = useState(1);
 
   useEffect(() => {
     loadData();
@@ -70,10 +75,11 @@ export default function HomeScreen() {
     try {
       setLoading(true);
 
-      // Cargar películas trending
-      const trendingRes = await fetch(`${API_URL}/api/movies/trending`);
+      // Cargar películas trending con paginación
+      const trendingRes = await fetch(`${API_URL}/api/movies/trending?page=${trendingPage}`);
       const trendingData = await trendingRes.json();
-      setTrendingMovies(trendingData.movies || []);
+      // Si es la primera página, reemplazar; si no, agregar
+      setTrendingMovies(trendingPage === 1 ? (trendingData.movies || []) : [...trendingMovies, ...(trendingData.movies || [])]);
 
       // Cargar ranking semanal (top 3 trending)
       const rankingRes = await fetch(`${API_URL}/api/weekly-ranking/${user?.id || "1"}`);
@@ -82,9 +88,9 @@ export default function HomeScreen() {
 
       // Cargar películas del primer género por defecto
       if (genres.length > 0) {
-        const genreRes = await fetch(`${API_URL}/api/movies/genre/${genres[0].name}`);
+        const genreRes = await fetch(`${API_URL}/api/movies/genre/${genres[0].name}?page=${genrePage}`);
         const genreData = await genreRes.json();
-        setGenreMovies(genreData.movies || []);
+        setGenreMovies(genrePage === 1 ? (genreData.movies || []) : [...genreMovies, ...(genreData.movies || [])]);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -95,6 +101,7 @@ export default function HomeScreen() {
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
+    setSearchPage(1); // Reset page on new search
 
     if (query.length < 2) {
       setSearchResults([]);
@@ -103,7 +110,7 @@ export default function HomeScreen() {
 
     try {
       setSearching(true);
-      const res = await fetch(`${API_URL}/api/movies/search/${query}`);
+      const res = await fetch(`${API_URL}/api/movies/search/${query}?page=1`);
       const data = await res.json();
       setSearchResults(data.movies || []);
     } catch (error) {
@@ -117,14 +124,16 @@ export default function HomeScreen() {
     if (selectedGenre?.id === genreObj.id) {
       setSelectedGenre(null);
       setGenreMovies([]);
+      setGenrePage(1);
       return;
     }
 
     setSelectedGenre(genreObj);
+    setGenrePage(1); // Reset page when changing genre
 
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/movies/genre/${genreObj.name}`);
+      const res = await fetch(`${API_URL}/api/movies/genre/${genreObj.name}?page=1`);
       const data = await res.json();
       setGenreMovies(data.movies || []);
     } catch (error) {
@@ -163,6 +172,43 @@ export default function HomeScreen() {
       // }).catch(err => console.error("Error adding favorite:", err));
     }
     setFavorites(newFavorites);
+  };
+
+  const loadMoreTrending = async () => {
+    try {
+      const nextPage = trendingPage + 1;
+      const res = await fetch(`${API_URL}/api/movies/trending?page=${nextPage}`);
+      const data = await res.json();
+      setTrendingMovies([...trendingMovies, ...(data.movies || [])]);
+      setTrendingPage(nextPage);
+    } catch (error) {
+      console.error("Error loading more trending movies:", error);
+    }
+  };
+
+  const loadMoreGenre = async () => {
+    if (!selectedGenre) return;
+    try {
+      const nextPage = genrePage + 1;
+      const res = await fetch(`${API_URL}/api/movies/genre/${selectedGenre.name}?page=${nextPage}`);
+      const data = await res.json();
+      setGenreMovies([...genreMovies, ...(data.movies || [])]);
+      setGenrePage(nextPage);
+    } catch (error) {
+      console.error("Error loading more genre movies:", error);
+    }
+  };
+
+  const loadMoreSearch = async () => {
+    try {
+      const nextPage = searchPage + 1;
+      const res = await fetch(`${API_URL}/api/movies/search/${searchQuery}?page=${nextPage}`);
+      const data = await res.json();
+      setSearchResults([...searchResults, ...(data.movies || [])]);
+      setSearchPage(nextPage);
+    } catch (error) {
+      console.error("Error loading more search results:", error);
+    }
   };
 
   const displayMovies =
@@ -452,15 +498,30 @@ export default function HomeScreen() {
           )}
 
           {displayMovies.length > 0 ? (
-            <View style={styles.movieGrid}>
-              {displayMovies.map((movie) => (
-                <MovieCard 
-                  key={movie.id} 
-                  movie={movie}
-                  onPress={() => handleMoviePress(movie)}
-                />
-              ))}
-            </View>
+            <>
+              <View style={styles.movieGrid}>
+                {displayMovies.map((movie) => (
+                  <MovieCard 
+                    key={movie.id} 
+                    movie={movie}
+                    onPress={() => handleMoviePress(movie)}
+                  />
+                ))}
+              </View>
+              {/* Load More Button */}
+              <TouchableOpacity 
+                style={styles.loadMoreButton}
+                onPress={
+                  searchQuery.length > 1 
+                    ? loadMoreSearch 
+                    : selectedGenre 
+                    ? loadMoreGenre 
+                    : loadMoreTrending
+                }
+              >
+                <Text style={styles.loadMoreButtonText}>Cargar más películas</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <Text style={styles.noResults}>
               {searchQuery.length > 1
@@ -880,5 +941,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: TEXT_LIGHT,
     flex: 1,
+  },
+  loadMoreButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: NEON_RED,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadMoreButtonText: {
+    fontSize: 14,
+    color: TEXT_LIGHT,
+    fontWeight: "600",
   },
 });
