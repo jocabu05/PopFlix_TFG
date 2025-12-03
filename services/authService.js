@@ -1,5 +1,5 @@
 // Conectar a backend desde dispositivo físico
-const API_URL = "http://172.20.10.2:4000/api/auth";
+const API_URL = "http://localhost:9999/api/auth";
 
 export async function login(credentials) {
   try {

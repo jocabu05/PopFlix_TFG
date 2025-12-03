@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { register } from "../services/authService";
 
-const NETFLIX_RED = "#DC2F1D";
+const PRIMARY_BLUE = "#1976D2";
 
 // Ruta del logo
 const logo = require("../assets/images/popflix-logo.png");
@@ -160,7 +160,7 @@ export default function RegisterScreen() {
         {/* NOMBRE */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="account" size={16} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="account" size={16} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Nombre</Text>
           </View>
           <TextInput
@@ -190,7 +190,7 @@ export default function RegisterScreen() {
         {/* APELLIDO */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="account" size={16} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="account" size={16} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Apellido</Text>
           </View>
           <TextInput
@@ -220,7 +220,7 @@ export default function RegisterScreen() {
         {/* EMAIL */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="email" size={16} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="email" size={16} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Correo electrónico</Text>
           </View>
           <TextInput
@@ -252,7 +252,7 @@ export default function RegisterScreen() {
         {/* TELÉFONO */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="phone" size={18} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="phone" size={18} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Teléfono</Text>
           </View>
           <TextInput
@@ -285,7 +285,7 @@ export default function RegisterScreen() {
         {/* CONTRASEÑA */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="lock" size={16} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="lock" size={16} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Contraseña</Text>
           </View>
           <View style={styles.passwordInputWrapper}>
@@ -315,7 +315,7 @@ export default function RegisterScreen() {
               <MaterialCommunityIcons
                 name={showPassword ? "eye-off" : "eye"}
                 size={20}
-                color={NETFLIX_RED}
+                color={PRIMARY_BLUE}
               />
             </TouchableOpacity>
           </View>
@@ -354,7 +354,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: "#0F0F0F" 
+    backgroundColor: "#0A1929" 
   },
   contentContainer: { 
     paddingHorizontal: 20, 
@@ -403,15 +403,15 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   inputFocused: {
-    borderColor: NETFLIX_RED,
+    borderColor: PRIMARY_BLUE,
     backgroundColor: "#1A1A1A",
-    shadowColor: NETFLIX_RED,
+    shadowColor: PRIMARY_BLUE,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   inputFilled: {
-    borderColor: NETFLIX_RED,
+    borderColor: PRIMARY_BLUE,
   },
   passwordInputWrapper: { 
     position: "relative", 
@@ -425,13 +425,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4 
   },
   button: {
-    backgroundColor: NETFLIX_RED,
+    backgroundColor: PRIMARY_BLUE,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 32,
-    shadowColor: NETFLIX_RED,
+    shadowColor: PRIMARY_BLUE,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 10,
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLinkBold: {
-    color: NETFLIX_RED,
+    color: PRIMARY_BLUE,
     fontSize: 14,
     fontWeight: "700",
   },

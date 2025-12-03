@@ -14,7 +14,7 @@ import { login } from "../services/authService";
 
 // Ruta correcta del logo
 const logo = require("../assets/images/popflix-logo.png");
-const NETFLIX_RED = "#DC2F1D";
+const PRIMARY_BLUE = "#1976D2";
 
 const isValidEmail = (email: string) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -110,7 +110,7 @@ export default function LoginScreen() {
         {/* EMAIL */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="email" size={16} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="email" size={16} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Correo electrónico</Text>
           </View>
           <TextInput
@@ -142,7 +142,7 @@ export default function LoginScreen() {
         {/* CONTRASEÑA */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="lock" size={16} color={NETFLIX_RED} />
+            <MaterialCommunityIcons name="lock" size={16} color={PRIMARY_BLUE} />
             <Text style={styles.labelText}>Contraseña</Text>
           </View>
           <View style={styles.passwordInputWrapper}>
@@ -175,7 +175,7 @@ export default function LoginScreen() {
               <MaterialCommunityIcons
                 name={showPassword ? "eye-off" : "eye"}
                 size={20}
-                color={NETFLIX_RED}
+                color={PRIMARY_BLUE}
               />
             </TouchableOpacity>
           </View>
@@ -222,7 +222,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F0F0F",
+    backgroundColor: "#0A1929",
     justifyContent: "flex-start",
     paddingHorizontal: 20,
     paddingTop: 40,
@@ -290,15 +290,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   inputFocused: {
-    borderColor: NETFLIX_RED,
+    borderColor: PRIMARY_BLUE,
     backgroundColor: "#1A1A1A",
-    shadowColor: NETFLIX_RED,
+    shadowColor: PRIMARY_BLUE,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   inputFilled: {
-    borderColor: NETFLIX_RED,
+    borderColor: PRIMARY_BLUE,
   },
   eyeIcon: {
     position: "absolute",
@@ -308,14 +308,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   button: {
-    backgroundColor: NETFLIX_RED,
+    backgroundColor: PRIMARY_BLUE,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 32,
     marginBottom: 20,
-    shadowColor: NETFLIX_RED,
+    shadowColor: PRIMARY_BLUE,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 10,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   registerLinkBold: {
-    color: NETFLIX_RED,
+    color: PRIMARY_BLUE,
     fontSize: 14,
     fontWeight: "700",
   },
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   forgotPasswordText: {
-    color: NETFLIX_RED,
+    color: PRIMARY_BLUE,
     fontSize: 13,
     fontWeight: "600",
     letterSpacing: 0.3,

@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0A0E1A",
+    backgroundColor: "#0A1929",
     padding: 20,
   },
   text: {
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   shareButton: {
-    backgroundColor: "#C11119",
+    backgroundColor: "#1976D2",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 10,

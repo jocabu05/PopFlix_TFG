@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 const cors = require("cors");
 
 const app = express();
-const PORT = 4000;
+const PORT = 9999;
 
 // Middleware
 app.use(cors());
@@ -338,11 +338,7 @@ app.use((err, req, res, next) => {
 });
 
 // Iniciar servidor
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log("✅ Backend listo para recibir peticiones");
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });

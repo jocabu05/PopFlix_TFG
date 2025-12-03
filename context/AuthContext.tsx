@@ -9,14 +9,17 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  platformsSelected: boolean;
   login: (user: User) => void;
   logout: () => void;
+  setPlatformsSelected: (selected: boolean) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [platformsSelected, setPlatformsSelected] = useState(false);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -24,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    setPlatformsSelected(false);
   };
 
   return (
@@ -31,8 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: user !== null,
+        platformsSelected,
         login,
         logout,
+        setPlatformsSelected,
       }}
     >
       {children}
