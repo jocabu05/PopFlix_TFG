@@ -1,74 +1,44 @@
 #!/usr/bin/env pwsh
 # Auto-commit watcher - Monitorea cambios y hace commits automáticos
-# Ejecutar: .\auto-commit-watcher.ps1
 
 param(
-    [int]$IntervalSeconds = 60  # Intervalo de chequeo en segundos
+    [int]$IntervalSeconds = 60
 )
 
 $projectPath = "C:\popFlix_TFG"
 $logFile = "$projectPath\auto-commit.log"
-$lastCommitHash = ""
 
-function Log-Message {
-    param([string]$message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMsg = "[$timestamp] $message"
-    Write-Host $logMsg
-    Add-Content -Path $logFile -Value $logMsg
-}
-
-function Get-ChangedFiles {
-    $changes = git status --porcelain
-    return @($changes | Where-Object { $_ })
-}
-
-function Generate-CommitMessage {
-    param([string[]]$files)
-    
-    $summary = @()
-    
-    # Analizar tipos de cambios
-    if ($files -match '\.tsx?$') { $summary += "Frontend" }
-    if ($files -match 'backend.*\.js$') { $summary += "Backend" }
-    if ($files -match 'package\.json') { $summary += "Dependencies" }
-    if ($files -match '\.md$') { $summary += "Docs" }
-    
-    $timestamp = Get-Date -Format "HH:mm:ss"
-    $message = "Auto-commit ($timestamp): $($summary -join ', ')"
-    return $message
-}
-
-Log-Message "🔍 Iniciando monitor de auto-commits..."
-Log-Message "Intervalo de chequeo: $IntervalSeconds segundos"
+Write-Host "🔍 Iniciando monitor de auto-commits..." -ForegroundColor Green
+Write-Host "Intervalo de chequeo: $IntervalSeconds segundos" -ForegroundColor Cyan
+Add-Content -Path $logFile -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Iniciando monitor"
 
 while ($true) {
     try {
         Set-Location $projectPath
         
-        $files = Get-ChangedFiles
+        $changes = git status --porcelain
         
-        if ($files.Count -gt 0) {
-            Log-Message "📝 Detectados $($files.Count) cambio(s)"
+        if ($changes) {
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            $changeCount = ($changes | Measure-Object -Line).Lines
             
-            # Mostrar archivos modificados
-            $files | ForEach-Object {
-                Log-Message "  → $_"
-            }
+            Write-Host "`n📝 [$timestamp] Detectados $changeCount cambio(s)" -ForegroundColor Yellow
             
-            # Hacer commit
             git add .
-            $commitMsg = Generate-CommitMessage $files
-            git commit -m $commitMsg
+            $commitTime = Get-Date -Format "HH:mm:ss"
+            git commit -m "Auto-commit: $commitTime"
             
-            # Push
-            git push 2>&1 | ForEach-Object { Log-Message "  $($_)" }
+            Write-Host "🚀 Enviando a GitHub..." -ForegroundColor Cyan
+            git push 2>&1 | Out-Null
             
-            Log-Message "✅ Commit enviado a GitHub"
+            Write-Host "✅ Commit enviado" -ForegroundColor Green
+            Add-Content -Path $logFile -Value "[$timestamp] Commit enviado ($changeCount cambios)"
         }
         
-    } catch {
-        Log-Message "❌ Error: $($_.Exception.Message)"
+    }
+    catch {
+        Write-Host "❌ Error: $($_.Exception.Message)" -ForegroundColor Red
+        Add-Content -Path $logFile -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Error: $($_.Exception.Message)"
     }
     
     Start-Sleep -Seconds $IntervalSeconds
