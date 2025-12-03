@@ -45,6 +45,84 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Backend está funcionando" });
 });
 
+// ============ PLATAFORMAS ============
+// Obtener todas las plataformas disponibles
+app.get("/api/platforms", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [platforms] = await connection.query("SELECT * FROM platforms ORDER BY id");
+    connection.release();
+    
+    return res.status(200).json({
+      message: "Plataformas obtenidas",
+      platforms: platforms
+    });
+  } catch (error) {
+    console.error("Error al obtener plataformas:", error);
+    return res.status(500).json({ message: "Error al obtener plataformas" });
+  }
+});
+
+// Obtener plataformas seleccionadas por el usuario
+app.get("/api/user/:userId/platforms", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const connection = await pool.getConnection();
+    
+    const [platforms] = await connection.query(
+      `SELECT p.*, up.selected FROM platforms p
+       LEFT JOIN user_platforms up ON p.id = up.platform_id AND up.user_id = ?
+       ORDER BY p.id`,
+      [userId]
+    );
+    
+    connection.release();
+    
+    return res.status(200).json({
+      message: "Plataformas del usuario obtenidas",
+      platforms: platforms
+    });
+  } catch (error) {
+    console.error("Error al obtener plataformas del usuario:", error);
+    return res.status(500).json({ message: "Error al obtener plataformas" });
+  }
+});
+
+// Guardar plataformas seleccionadas
+app.post("/api/user/:userId/platforms", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { selectedPlatforms } = req.body; // Array de IDs de plataformas
+    
+    if (!selectedPlatforms || !Array.isArray(selectedPlatforms)) {
+      return res.status(400).json({ message: "selectedPlatforms debe ser un array" });
+    }
+
+    const connection = await pool.getConnection();
+    
+    // Eliminar selecciones anteriores
+    await connection.query("DELETE FROM user_platforms WHERE user_id = ?", [userId]);
+    
+    // Insertar nuevas selecciones
+    for (const platformId of selectedPlatforms) {
+      await connection.query(
+        "INSERT INTO user_platforms (user_id, platform_id, selected) VALUES (?, ?, TRUE)",
+        [userId, platformId]
+      );
+    }
+    
+    connection.release();
+    
+    return res.status(200).json({
+      message: "Plataformas actualizadas exitosamente",
+      selectedCount: selectedPlatforms.length
+    });
+  } catch (error) {
+    console.error("Error al guardar plataformas:", error);
+    return res.status(500).json({ message: "Error al guardar plataformas" });
+  }
+});
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
@@ -172,6 +250,79 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (error) {
     console.error("Error en login:", error);
     return res.status(500).json({ message: "Error en el servidor" });
+  }
+});
+
+// ========== RUTAS DE PLATAFORMAS ==========
+
+// Obtener todas las plataformas
+app.get("/api/platforms", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [platforms] = await connection.query("SELECT id, name, icon, color FROM platforms ORDER BY name");
+    connection.release();
+    
+    return res.status(200).json({ platforms });
+  } catch (error) {
+    console.error("Error obteniendo plataformas:", error);
+    return res.status(500).json({ message: "Error al obtener plataformas" });
+  }
+});
+
+// Obtener plataformas del usuario
+app.get("/api/user/:userId/platforms", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const connection = await pool.getConnection();
+    
+    const [userPlatforms] = await connection.query(
+      `SELECT p.id, p.name, p.icon, p.color, COALESCE(up.selected, FALSE) as selected
+       FROM platforms p
+       LEFT JOIN user_platforms up ON p.id = up.platform_id AND up.user_id = ?
+       ORDER BY p.name`,
+      [userId]
+    );
+    
+    connection.release();
+    return res.status(200).json({ platforms: userPlatforms });
+  } catch (error) {
+    console.error("Error obteniendo plataformas del usuario:", error);
+    return res.status(500).json({ message: "Error al obtener plataformas" });
+  }
+});
+
+// Guardar plataformas seleccionadas por el usuario
+app.post("/api/user/:userId/platforms", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { platformIds } = req.body;
+
+    if (!platformIds || !Array.isArray(platformIds)) {
+      return res.status(400).json({ message: "platformIds debe ser un array" });
+    }
+
+    const connection = await pool.getConnection();
+
+    // Eliminar selecciones previas
+    await connection.query("DELETE FROM user_platforms WHERE user_id = ?", [userId]);
+
+    // Insertar nuevas selecciones
+    for (const platformId of platformIds) {
+      await connection.query(
+        "INSERT INTO user_platforms (user_id, platform_id, selected) VALUES (?, ?, TRUE)",
+        [userId, platformId]
+      );
+    }
+
+    connection.release();
+
+    return res.status(201).json({
+      message: "Plataformas guardadas exitosamente",
+      platformsCount: platformIds.length
+    });
+  } catch (error) {
+    console.error("Error guardando plataformas:", error);
+    return res.status(500).json({ message: "Error al guardar plataformas" });
   }
 });
 
