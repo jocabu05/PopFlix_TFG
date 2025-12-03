@@ -39,7 +39,7 @@ echo ║  popFlix INICIADO CORRECTAMENTE    ║
 echo ╚════════════════════════════════════╝
 echo.
 echo ^├─ Frontend: http://localhost:8081
-echo ^├─ Backend: http://localhost:4000
+echo ^├─ Backend: http://localhost:9999
 echo ^├─ Auto-commit: Cada hora
 echo ^└─ Auto-tag: Snapshot cada hora
 echo.
