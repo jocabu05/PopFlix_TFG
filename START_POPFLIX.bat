@@ -23,12 +23,12 @@ timeout /t 3 /nobreak
 
 REM 3. Auto-commit
 echo 3^) Iniciando auto-commit watcher ^(cada hora^)...
-start "popFlix Auto-Commit" cmd /k "cd %PROJECT% && auto-commit-watcher.bat 3600"
+start "popFlix Auto-Commit" cmd /k "cd %PROJECT% && scripts\auto-commit-watcher.bat 3600"
 timeout /t 3 /nobreak
 
 REM 4. Auto-tag
 echo 4^) Iniciando auto-tag watcher ^(snapshots cada hora^)...
-start "popFlix Auto-Tag" cmd /k "cd %PROJECT% && auto-tag-watcher.bat 3600"
+start "popFlix Auto-Tag" cmd /k "cd %PROJECT% && scripts\auto-tag-watcher.bat 3600"
 timeout /t 3 /nobreak
 
 cls
