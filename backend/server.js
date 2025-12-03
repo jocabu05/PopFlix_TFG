@@ -88,41 +88,6 @@ app.get("/api/user/:userId/platforms", async (req, res) => {
   }
 });
 
-// Guardar plataformas seleccionadas
-app.post("/api/user/:userId/platforms", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { selectedPlatforms } = req.body; // Array de IDs de plataformas
-    
-    if (!selectedPlatforms || !Array.isArray(selectedPlatforms)) {
-      return res.status(400).json({ message: "selectedPlatforms debe ser un array" });
-    }
-
-    const connection = await pool.getConnection();
-    
-    // Eliminar selecciones anteriores
-    await connection.query("DELETE FROM user_platforms WHERE user_id = ?", [userId]);
-    
-    // Insertar nuevas selecciones
-    for (const platformId of selectedPlatforms) {
-      await connection.query(
-        "INSERT INTO user_platforms (user_id, platform_id, selected) VALUES (?, ?, TRUE)",
-        [userId, platformId]
-      );
-    }
-    
-    connection.release();
-    
-    return res.status(200).json({
-      message: "Plataformas actualizadas exitosamente",
-      selectedCount: selectedPlatforms.length
-    });
-  } catch (error) {
-    console.error("Error al guardar plataformas:", error);
-    return res.status(500).json({ message: "Error al guardar plataformas" });
-  }
-});
-
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
@@ -297,17 +262,25 @@ app.post("/api/user/:userId/platforms", async (req, res) => {
     const { userId } = req.params;
     const { platformIds } = req.body;
 
+    console.log("POST /api/user/:userId/platforms");
+    console.log("userId:", userId);
+    console.log("platformIds:", platformIds);
+
     if (!platformIds || !Array.isArray(platformIds)) {
+      console.log("Error: platformIds no es un array válido");
       return res.status(400).json({ message: "platformIds debe ser un array" });
     }
 
     const connection = await pool.getConnection();
+    console.log("Conexión obtenida");
 
     // Eliminar selecciones previas
     await connection.query("DELETE FROM user_platforms WHERE user_id = ?", [userId]);
+    console.log("Registros previos eliminados");
 
     // Insertar nuevas selecciones
     for (const platformId of platformIds) {
+      console.log("Insertando platform:", platformId);
       await connection.query(
         "INSERT INTO user_platforms (user_id, platform_id, selected) VALUES (?, ?, TRUE)",
         [userId, platformId]
@@ -315,6 +288,7 @@ app.post("/api/user/:userId/platforms", async (req, res) => {
     }
 
     connection.release();
+    console.log("Conexión liberada");
 
     return res.status(201).json({
       message: "Plataformas guardadas exitosamente",
@@ -322,7 +296,111 @@ app.post("/api/user/:userId/platforms", async (req, res) => {
     });
   } catch (error) {
     console.error("Error guardando plataformas:", error);
-    return res.status(500).json({ message: "Error al guardar plataformas" });
+    return res.status(500).json({ message: "Error al guardar plataformas", error: error.message });
+  }
+});
+
+// ============ PELÍCULAS (Mock Data) ============
+// Por ahora usamos datos de prueba. Luego integraremos TMDB API
+const mockMovies = [
+  {
+    id: 1,
+    title: "The Shawshank Redemption",
+    description: "Two imprisoned men bond over a number of years...",
+    poster_url: "https://image.tmdb.org/t/p/w342/q6y0aKCQyIE9zDSCpf2H5BpJLhE.jpg",
+    rating: 9.3,
+    genre: "Drama",
+    platform: "Netflix"
+  },
+  {
+    id: 2,
+    title: "The Godfather",
+    description: "The aging patriarch of an organized crime dynasty...",
+    poster_url: "https://image.tmdb.org/t/p/w342/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+    rating: 9.2,
+    genre: "Crime",
+    platform: "HBO Max"
+  },
+  {
+    id: 3,
+    title: "The Dark Knight",
+    description: "When the menace known as the Joker wreaks havoc...",
+    poster_url: "https://image.tmdb.org/t/p/w342/1hqwGsggkxwifsDMEH61F4v8zM.jpg",
+    rating: 9.0,
+    genre: "Action",
+    platform: "Netflix"
+  }
+];
+
+// Obtener películas para el usuario
+app.get("/api/movies/:userId", async (req, res) => {
+  try {
+    res.status(200).json({ 
+      movies: mockMovies,
+      count: mockMovies.length,
+      message: "Películas obtenidas exitosamente"
+    });
+  } catch (error) {
+    console.error("Error fetching movies:", error);
+    res.status(500).json({ message: "Error al obtener películas", error: error.message });
+  }
+});
+
+// Obtener ranking semanal (Top 3)
+app.get("/api/weekly-ranking/:userId", async (req, res) => {
+  try {
+    const ranking = mockMovies.slice(0, 3).map((movie, index) => ({
+      ...movie,
+      position: index + 1,
+      medal: index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"
+    }));
+    
+    res.status(200).json({
+      ranking,
+      weekStart: new Date().toISOString().split('T')[0],
+      message: "Ranking obtenido exitosamente"
+    });
+  } catch (error) {
+    console.error("Error fetching ranking:", error);
+    res.status(500).json({ message: "Error al obtener ranking", error: error.message });
+  }
+});
+
+// Buscar películas
+app.get("/api/movies/search/:userId/:query", async (req, res) => {
+  try {
+    const { query } = req.params;
+    const results = mockMovies.filter(m => 
+      m.title.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    res.status(200).json({
+      results,
+      count: results.length,
+      message: "Búsqueda completada"
+    });
+  } catch (error) {
+    console.error("Error searching movies:", error);
+    res.status(500).json({ message: "Error al buscar películas", error: error.message });
+  }
+});
+
+// Obtener películas por género
+app.get("/api/movies/genre/:userId/:genre", async (req, res) => {
+  try {
+    const { genre } = req.params;
+    const movies = mockMovies.filter(m => 
+      m.genre.toLowerCase() === genre.toLowerCase()
+    );
+    
+    res.status(200).json({
+      movies,
+      count: movies.length,
+      message: "Películas del género obtenidas"
+    });
+  } catch (error) {
+    console.error("Error fetching genre movies:", error);
+    res.status(500).json({ message: "Error al obtener películas del género", error: error.message });
   }
 });
 

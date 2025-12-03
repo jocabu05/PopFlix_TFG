@@ -17,7 +17,7 @@ const PRIMARY_BLUE = "#1976D2";
 // Paleta cinematográfica profesional tipo streaming
 const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
 const BG_ACCENT = "#1A1A1A";            // Gris oscuro
-const NEON_RED = "#E50914";             // Rojo Netflix profundo
+const NEON_RED = "#B20710";             // Rojo Netflix oscuro
 const NEON_ORANGE = "#D97706";          // Naranja cálido suave
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";

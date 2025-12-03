@@ -10,7 +10,8 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import { login } from "../services/authService";
+import { useAuthContext } from "../context/AuthContext";
+import { login as loginService } from "../services/authService";
 
 // Ruta correcta del logo
 const logo = require("../assets/images/popflix-logo.png");
@@ -19,7 +20,7 @@ const PRIMARY_BLUE = "#1976D2";
 // Paleta cinematográfica profesional tipo streaming
 const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
 const BG_ACCENT = "#1A1A1A";            // Gris oscuro
-const NEON_RED = "#E50914";             // Rojo Netflix profundo
+const NEON_RED = "#B20710";             // Rojo Netflix oscuro
 const NEON_ORANGE = "#D97706";          // Naranja cálido suave
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";
@@ -31,6 +32,7 @@ const isValidEmail = (email: string) => {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login: contextLogin } = useAuthContext();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -106,10 +108,16 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const user = await login({ email, password });
-      const userName = user?.user?.name || "Usuario";
-      alert(`✅ Bienvenido ${userName}`);
-      router.push("/home");
+      const response = await loginService({ email, password });
+      
+      if (response.user) {
+        contextLogin(response.user);
+        const userName = response.user?.firstName || response.user?.name || "Usuario";
+        alert(`✅ Bienvenido ${userName}`);
+        router.push("/home");
+      } else {
+        alert("❌ Error: No se recibieron datos del usuario");
+      }
     } catch (err) {
       if (err instanceof Error) {
         alert(`❌ Credenciales incorrectas: ${err.message}`);

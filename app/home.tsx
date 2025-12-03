@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
+    Animated,
     Image,
     ScrollView,
     StyleSheet,
@@ -12,13 +13,12 @@ import {
 } from "react-native";
 import { useAuth } from "../hooks/useAuth";
 
-// Paleta cinematográfica profesional tipo streaming
+// Colores
 const BG_DARK = "#0F0F0F";
 const BG_ACCENT = "#1A1A1A";
-const NEON_RED = "#E50914";
+const NEON_RED = "#B20710";
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";
-const TEXT_MUTED_LIGHT = "#888888";
 
 interface Platform {
   id: number;
@@ -42,7 +42,6 @@ const getPlatformLogo = (name: string): any => {
     apple: require("../assets/logos/appleTv-logo.png"),
     "apple tv+": require("../assets/logos/appleTv-logo.png"),
   };
-
   const key = name.toLowerCase().trim();
   return logoMap[key] || logoMap["netflix"];
 };
@@ -54,7 +53,7 @@ export default function HomeScreen() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const animScaleValues = useRef<{ [key: number]: Animated.Value }>({}).current;
 
   useEffect(() => {
     loadPlatforms();
@@ -65,10 +64,11 @@ export default function HomeScreen() {
       setLoading(true);
       const response = await fetch("http://192.168.68.103:9999/api/platforms");
       const data = await response.json();
-      // Filtrar "Otros"
+      console.log("Plataformas cargadas:", data);
       const filtered = data.platforms.filter(
-        (p: Platform) => p.name.toLowerCase() !== 'otros'
+        (p: Platform) => p.name.toLowerCase() !== "otros"
       );
+      console.log("Plataformas filtradas:", filtered);
       setPlatforms(filtered);
     } catch (error) {
       console.error("Error cargando plataformas:", error);
@@ -78,37 +78,97 @@ export default function HomeScreen() {
   };
 
   const togglePlatform = (platformId: number) => {
-    setSelectedPlatforms((prev) =>
-      prev.includes(platformId)
+    console.log("TOGGLE - platformId:", platformId, "tipo:", typeof platformId);
+    console.log("TOGGLE - antes:", selectedPlatforms);
+    setSelectedPlatforms((prev) => {
+      const newSelection = prev.includes(platformId)
         ? prev.filter((id) => id !== platformId)
-        : [...prev, platformId]
-    );
+        : [...prev, platformId];
+      console.log("TOGGLE - después:", newSelection);
+      return newSelection;
+    });
+    animatePlatform(platformId);
+  };
+
+  const animatePlatform = (platformId: number) => {
+    if (!animScaleValues[platformId]) {
+      animScaleValues[platformId] = new Animated.Value(1);
+    }
+    Animated.sequence([
+      Animated.timing(animScaleValues[platformId], {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animScaleValues[platformId], {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const savePlatforms = async () => {
-    if (selectedPlatforms.length === 0) {
-      alert("Por favor selecciona al menos una plataforma");
-      return;
-    }
-
     try {
-      setSaving(true);
-      const response = await fetch("http://192.168.68.103:9999/api/users/platforms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user?.id,
-          platformIds: selectedPlatforms,
-        }),
-      });
+      // Convertir a array seguro
+      const platformsToSend: number[] = [];
+      
+      if (Array.isArray(selectedPlatforms)) {
+        platformsToSend.push(...selectedPlatforms);
+      }
+      
+      console.log("platformsToSend:", platformsToSend);
+      console.log("user:", user);
+      console.log("user?.id:", user?.id);
+      
+      if (platformsToSend.length === 0) {
+        alert("Por favor selecciona al menos una plataforma");
+        return;
+      }
 
-      if (response.ok) {
-        setPlatformsSelected(true);
-        router.push("/(tabs)");
+      if (!user?.id) {
+        alert("Error: Usuario no autenticado");
+        return;
+      }
+
+      setSaving(true);
+      
+      const payload = {
+        platformIds: platformsToSend,
+      };
+      
+      console.log("Enviando:", JSON.stringify(payload));
+      
+      const response = await fetch(
+        `http://192.168.68.103:9999/api/user/${user.id}/platforms`,
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      console.log("Status:", response.status);
+      const text = await response.text();
+      console.log("Response:", text);
+      
+      try {
+        const data = JSON.parse(text);
+        if (response.ok || response.status === 201) {
+          setPlatformsSelected(true);
+          router.push("/(tabs)");
+        } else {
+          alert(data.message || "Error");
+        }
+      } catch (e) {
+        console.error("No JSON response:", text);
+        alert("Error al guardar");
       }
     } catch (error) {
-      console.error("Error guardando plataformas:", error);
-      alert("Error al guardar las plataformas");
+      console.error("Error:", error);
+      alert("Error");
     } finally {
       setSaving(false);
     }
@@ -126,78 +186,90 @@ export default function HomeScreen() {
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={styles.content}
     >
-      {/* Header Section */}
-      <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>Bienvenido a POPFLIX</Text>
-        <Text style={styles.heroSubtitle}>Selecciona tus plataformas favoritas</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Bienvenido a POPFLIX</Text>
+        <Text style={styles.subtitle}>Selecciona tus plataformas</Text>
       </View>
 
-      {/* Stats Cards */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{platforms.length}</Text>
+      {/* Stats */}
+      <View style={styles.stats}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{platforms.length}</Text>
           <Text style={styles.statLabel}>Plataformas</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{selectedPlatforms.length}</Text>
-          <Text style={styles.statLabel}>Seleccionadas</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>∞</Text>
+        <View style={styles.divider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>∞</Text>
           <Text style={styles.statLabel}>Películas</Text>
         </View>
       </View>
 
       {/* Platforms Grid */}
-      <View style={styles.platformsSection}>
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Tus Plataformas</Text>
-        <View style={styles.platformsGrid}>
-          {platforms.map((platform) => (
-            <TouchableOpacity
-              key={platform.id}
-              style={[
-                styles.platformCard,
-                selectedPlatforms.includes(platform.id) && styles.platformCardSelected,
-                hoveredCard === platform.id && styles.platformCardHovered,
-              ]}
-              onPress={() => togglePlatform(platform.id)}
-              onPressIn={() => setHoveredCard(platform.id)}
-              onPressOut={() => setHoveredCard(null)}
-              activeOpacity={0.8}
-            >
-              <Image
-                source={getPlatformLogo(platform.name)}
-                style={styles.logoImage}
-                resizeMode="cover"
-              />
-              <Text style={styles.platformName}>{platform.name}</Text>
-              {selectedPlatforms.includes(platform.id) && (
-                <View style={styles.checkmark}>
-                  <MaterialCommunityIcons name="check" size={16} color={TEXT_LIGHT} />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+        <View style={styles.grid}>
+          {platforms.map((platform) => {
+            if (!animScaleValues[platform.id]) {
+              animScaleValues[platform.id] = new Animated.Value(1);
+            }
+            const isSelected = selectedPlatforms.includes(platform.id);
+
+            return (
+              <Animated.View
+                key={platform.id}
+                style={[
+                  {
+                    transform: [{ scale: animScaleValues[platform.id] }],
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={[styles.card, isSelected && styles.cardSelected]}
+                  onPress={() => togglePlatform(platform.id)}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={getPlatformLogo(platform.name)}
+                    style={styles.logo}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.platformName}>{platform.name}</Text>
+                  {isSelected && (
+                    <View style={styles.badge}>
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={12}
+                        color={TEXT_LIGHT}
+                      />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
         </View>
       </View>
 
-      {/* CTA Section */}
-      <View style={styles.ctaSection}>
+      {/* Button & Counter */}
+      <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.mainButton, saving && styles.mainButtonDisabled]}
+          style={[styles.button, saving && styles.buttonDisabled]}
           onPress={savePlatforms}
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color={TEXT_LIGHT} />
+            <ActivityIndicator color={TEXT_LIGHT} size="small" />
           ) : (
-            <Text style={styles.mainButtonText}>COMENZAR</Text>
+            <Text style={styles.buttonText}>COMENZAR</Text>
           )}
         </TouchableOpacity>
-        <Text style={styles.selectedCountText}>
-          {selectedPlatforms.length} plataforma{selectedPlatforms.length !== 1 ? "s" : ""} seleccionada{selectedPlatforms.length !== 1 ? "s" : ""}
+        <Text style={styles.counter}>
+          {selectedPlatforms.length} plataforma
+          {selectedPlatforms.length !== 1 ? "s" : ""} seleccionada
+          {selectedPlatforms.length !== 1 ? "s" : ""}
         </Text>
       </View>
     </ScrollView>
@@ -209,10 +281,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG_DARK,
   },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
+  content: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   centerContainer: {
     flex: 1,
@@ -220,111 +291,122 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  heroSection: {
+
+  // Header
+  header: {
+    marginBottom: 24,
     alignItems: "center",
-    marginBottom: 16,
   },
-  heroTitle: {
-    color: TEXT_LIGHT,
+  title: {
     fontSize: 28,
     fontWeight: "900",
+    color: TEXT_LIGHT,
     marginBottom: 4,
-    textAlign: "center",
   },
-  heroSubtitle: {
-    color: TEXT_MUTED,
+  subtitle: {
     fontSize: 13,
     fontWeight: "500",
-    textAlign: "center",
+    color: TEXT_MUTED,
   },
-  statsRow: {
+
+  // Stats
+  stats: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
     backgroundColor: BG_ACCENT,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    borderRadius: 0,
-    alignItems: "center",
     borderTopWidth: 3,
     borderTopColor: NEON_RED,
+    borderRadius: 0,
+    marginBottom: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    justifyContent: "space-around",
+    alignItems: "center",
   },
-  statNumber: {
-    color: NEON_RED,
+  statItem: {
+    alignItems: "center",
+  },
+  statValue: {
     fontSize: 24,
     fontWeight: "900",
-    marginBottom: 4,
+    color: NEON_RED,
+    marginBottom: 2,
   },
   statLabel: {
-    color: TEXT_MUTED,
     fontSize: 11,
     fontWeight: "600",
+    color: TEXT_MUTED,
   },
-  platformsSection: {
-    marginBottom: 20,
+  divider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "rgba(229,9,20,0.2)",
+  },
+
+  // Section
+  section: {
+    marginBottom: 28,
   },
   sectionTitle: {
-    color: TEXT_LIGHT,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
-    marginBottom: 12,
+    color: TEXT_LIGHT,
+    marginBottom: 18,
+    letterSpacing: 0.3,
   },
-  platformsGrid: {
+  grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    justifyContent: "space-between",
+    gap: 14,
+    justifyContent: "center",
   },
-  platformCard: {
+  card: {
     width: "30%",
+    minWidth: 100,
     backgroundColor: BG_ACCENT,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: "rgba(229,9,20,0.3)",
     borderRadius: 0,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(229,9,20,0.2)",
+    justifyContent: "center",
     position: "relative",
   },
-  platformCardSelected: {
+  cardSelected: {
     borderColor: NEON_RED,
-    backgroundColor: "rgba(229,9,20,0.12)",
+    borderWidth: 2,
+    backgroundColor: "rgba(229,9,20,0.15)",
   },
-  platformCardHovered: {
-    backgroundColor: "#252525",
-    borderColor: "#FF3535",
-  },
-  logoImage: {
-    width: 70,
-    height: 70,
-    marginBottom: 8,
+  logo: {
+    width: 75,
+    height: 75,
+    marginBottom: 10,
     borderRadius: 0,
   },
   platformName: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: TEXT_LIGHT,
     textAlign: "center",
+    marginTop: 2,
   },
-  checkmark: {
+  badge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: 6,
+    right: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: NEON_RED,
     alignItems: "center",
     justifyContent: "center",
   },
-  ctaSection: {
-    marginTop: 16,
+
+  // Footer
+  footer: {
+    marginBottom: 16,
   },
-  mainButton: {
+  button: {
     backgroundColor: NEON_RED,
     paddingVertical: 14,
     borderRadius: 0,
@@ -332,21 +414,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 48,
   },
-  mainButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.6,
   },
-  mainButtonText: {
+  buttonText: {
     color: TEXT_LIGHT,
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
-  selectedCountText: {
+  counter: {
     color: TEXT_MUTED,
-    textAlign: "center",
-    marginTop: 8,
     fontSize: 12,
     fontWeight: "500",
+    textAlign: "center",
+    marginTop: 10,
   },
 });
 
