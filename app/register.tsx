@@ -2,18 +2,25 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Animated,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { register } from "../services/authService";
 
 const PRIMARY_BLUE = "#1976D2";
+
+// Paleta cinematográfica profesional tipo streaming
+const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
+const BG_ACCENT = "#1A1A1A";            // Gris oscuro
+const NEON_RED = "#E50914";             // Rojo Netflix profundo
+const NEON_ORANGE = "#D97706";          // Naranja cálido suave
+const TEXT_LIGHT = "#FFFFFF";
+const TEXT_MUTED = "#B0B0B0";
 
 // Ruta del logo
 const logo = require("../assets/images/popflix-logo.png");
@@ -38,6 +45,26 @@ export default function RegisterScreen() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  
+  // Animación del fondo
+  const bgAnimation = new Animated.Value(0);
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bgAnimation, {
+          toValue: 1,
+          duration: 6000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(bgAnimation, {
+          toValue: 0,
+          duration: 6000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
@@ -147,7 +174,18 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <Animated.ScrollView 
+      style={[
+        styles.container,
+        {
+          backgroundColor: bgAnimation.interpolate({
+            inputRange: [0, 1],
+            outputRange: [BG_DARK, BG_ACCENT],
+          }),
+        }
+      ]}
+      contentContainerStyle={styles.contentContainer}
+    >
       <View style={styles.header}>
         <Animated.Image 
           source={logo} 
@@ -160,7 +198,7 @@ export default function RegisterScreen() {
         {/* NOMBRE */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="account" size={16} color={PRIMARY_BLUE} />
+            <MaterialCommunityIcons name="account" size={16} color={NEON_RED} />
             <Text style={styles.labelText}>Nombre</Text>
           </View>
           <TextInput
@@ -190,7 +228,7 @@ export default function RegisterScreen() {
         {/* APELLIDO */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="account" size={16} color={PRIMARY_BLUE} />
+            <MaterialCommunityIcons name="account" size={16} color={NEON_RED} />
             <Text style={styles.labelText}>Apellido</Text>
           </View>
           <TextInput
@@ -220,7 +258,7 @@ export default function RegisterScreen() {
         {/* EMAIL */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="email" size={16} color={PRIMARY_BLUE} />
+            <MaterialCommunityIcons name="email" size={16} color={NEON_RED} />
             <Text style={styles.labelText}>Correo electrónico</Text>
           </View>
           <TextInput
@@ -252,7 +290,7 @@ export default function RegisterScreen() {
         {/* TELÉFONO */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="phone" size={18} color={PRIMARY_BLUE} />
+            <MaterialCommunityIcons name="phone" size={18} color={NEON_RED} />
             <Text style={styles.labelText}>Teléfono</Text>
           </View>
           <TextInput
@@ -285,7 +323,7 @@ export default function RegisterScreen() {
         {/* CONTRASEÑA */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="lock" size={16} color={PRIMARY_BLUE} />
+            <MaterialCommunityIcons name="lock" size={16} color={NEON_RED} />
             <Text style={styles.labelText}>Contraseña</Text>
           </View>
           <View style={styles.passwordInputWrapper}>
@@ -315,7 +353,7 @@ export default function RegisterScreen() {
               <MaterialCommunityIcons
                 name={showPassword ? "eye-off" : "eye"}
                 size={20}
-                color={PRIMARY_BLUE}
+                color={NEON_RED}
               />
             </TouchableOpacity>
           </View>
@@ -334,7 +372,7 @@ export default function RegisterScreen() {
           ) : (
             <>
               <MaterialCommunityIcons name="account-plus" size={22} color="white" style={{ marginRight: 10 }} />
-              <Text style={styles.buttonText}>CREAR CUENTA</Text>
+              <Text style={styles.buttonText}>Crear cuenta</Text>
             </>
           )}
         </TouchableOpacity>
@@ -347,14 +385,23 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#0A1929" 
+  container: {
+    flex: 1,
+    backgroundColor: BG_DARK,
+  },
+  gradientOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: NEON_RED,
+    zIndex: -1,
   },
   contentContainer: { 
     paddingHorizontal: 20, 
@@ -367,8 +414,8 @@ const styles = StyleSheet.create({
     marginTop: 20 
   },
   logoImage: { 
-    width: 320, 
-    height: 220 
+    width: 380, 
+    height: 260 
   },
   formContainer: { 
     width: "100%" 
@@ -382,20 +429,19 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   labelText: {
-    color: "#FFFFFF",
-    fontSize: 13,
+    color: TEXT_LIGHT,
+    fontSize: 12,
     fontWeight: "700",
     marginLeft: 8,
     letterSpacing: 0.4,
-    textTransform: "uppercase",
   },
   input: {
-    backgroundColor: "#1A1A1A",
-    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 0,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: "#FFFFFF",
-    borderColor: "#333333",
+    color: TEXT_LIGHT,
+    borderColor: "rgba(196,30,58,0.3)",
     borderWidth: 1.5,
     fontSize: 15,
     fontWeight: "500",
@@ -403,15 +449,15 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   inputFocused: {
-    borderColor: PRIMARY_BLUE,
-    backgroundColor: "#1A1A1A",
-    shadowColor: PRIMARY_BLUE,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderColor: NEON_RED,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   inputFilled: {
-    borderColor: PRIMARY_BLUE,
+    borderColor: NEON_RED,
   },
   passwordInputWrapper: { 
     position: "relative", 
@@ -425,16 +471,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4 
   },
   button: {
-    backgroundColor: PRIMARY_BLUE,
-    borderRadius: 10,
+    backgroundColor: NEON_RED,
+    borderRadius: 0,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 32,
-    shadowColor: PRIMARY_BLUE,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 10,
     flexDirection: "row",
   },
   buttonDisabled: { 
@@ -458,7 +500,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLinkBold: {
-    color: PRIMARY_BLUE,
+    color: NEON_RED,
     fontSize: 14,
     fontWeight: "700",
   },

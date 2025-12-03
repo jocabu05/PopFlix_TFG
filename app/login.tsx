@@ -2,19 +2,27 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Animated,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { login } from "../services/authService";
 
 // Ruta correcta del logo
 const logo = require("../assets/images/popflix-logo.png");
 const PRIMARY_BLUE = "#1976D2";
+
+// Paleta cinematográfica profesional tipo streaming
+const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
+const BG_ACCENT = "#1A1A1A";            // Gris oscuro
+const NEON_RED = "#E50914";             // Rojo Netflix profundo
+const NEON_ORANGE = "#D97706";          // Naranja cálido suave
+const TEXT_LIGHT = "#FFFFFF";
+const TEXT_MUTED = "#B0B0B0";
 
 const isValidEmail = (email: string) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,6 +36,26 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Animación del fondo
+  const bgAnimation = new Animated.Value(0);
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bgAnimation, {
+          toValue: 1,
+          duration: 6000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(bgAnimation, {
+          toValue: 0,
+          duration: 6000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
@@ -94,7 +122,17 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Animated.View 
+      style={[
+        styles.container,
+        {
+          backgroundColor: bgAnimation.interpolate({
+            inputRange: [0, 0.5, 1],
+            outputRange: [BG_DARK, BG_ACCENT, BG_DARK],
+          }),
+        }
+      ]}
+    >
       {/* HEADER CON LOGO */}
       <View style={styles.headerContainer}>
         <Animated.Image 
@@ -110,8 +148,8 @@ export default function LoginScreen() {
         {/* EMAIL */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="email" size={16} color={PRIMARY_BLUE} />
-            <Text style={styles.labelText}>Correo electrónico</Text>
+            <MaterialCommunityIcons name="email" size={16} color={NEON_RED} />
+            <Text style={styles.labelText}>Email</Text>
           </View>
           <TextInput
             style={[
@@ -142,7 +180,7 @@ export default function LoginScreen() {
         {/* CONTRASEÑA */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="lock" size={16} color={PRIMARY_BLUE} />
+            <MaterialCommunityIcons name="lock" size={16} color={NEON_RED} />
             <Text style={styles.labelText}>Contraseña</Text>
           </View>
           <View style={styles.passwordInputWrapper}>
@@ -175,7 +213,7 @@ export default function LoginScreen() {
               <MaterialCommunityIcons
                 name={showPassword ? "eye-off" : "eye"}
                 size={20}
-                color={PRIMARY_BLUE}
+                color={NEON_RED}
               />
             </TouchableOpacity>
           </View>
@@ -194,7 +232,7 @@ export default function LoginScreen() {
           ) : (
             <>
               <MaterialCommunityIcons name="login" size={20} color="white" style={{ marginRight: 8 }} />
-              <Text style={styles.buttonText}>INICIAR SESIÓN</Text>
+              <Text style={styles.buttonText}>Iniciar sesión</Text>
             </>
           )}
         </TouchableOpacity>
@@ -215,37 +253,46 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1929",
+    backgroundColor: BG_DARK,
     justifyContent: "flex-start",
     paddingHorizontal: 20,
     paddingTop: 40,
+  },
+  gradientOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#1976D2",
+    zIndex: -1,
   },
   headerContainer: {
     alignItems: "center",
     marginBottom: 50,
   },
   logo: {
-    width: 320,
-    height: 220,
+    width: 380,
+    height: 260,
     marginBottom: 20,
   },
   welcomeTitle: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: TEXT_LIGHT,
     marginBottom: 8,
     letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: "#FFFFFF",
+    color: TEXT_MUTED,
     letterSpacing: 0.3,
     fontWeight: "500",
   },
@@ -261,44 +308,39 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   labelText: {
-    color: "#FFFFFF",
+    color: TEXT_LIGHT,
     fontSize: 13,
     fontWeight: "700",
     marginLeft: 8,
     letterSpacing: 0.4,
-    textTransform: "uppercase",
   },
   passwordInputWrapper: {
     position: "relative",
     justifyContent: "center",
   },
   input: {
-    backgroundColor: "#1A1A1A",
-    color: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    color: TEXT_LIGHT,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1.5,
-    borderColor: "#333333",
+    borderColor: "rgba(196,30,58,0.3)",
     fontSize: 15,
     fontWeight: "500",
     height: 50,
     minHeight: 50,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
   },
   inputFocused: {
-    borderColor: PRIMARY_BLUE,
-    backgroundColor: "#1A1A1A",
-    shadowColor: PRIMARY_BLUE,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderColor: NEON_RED,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   inputFilled: {
-    borderColor: PRIMARY_BLUE,
+    borderColor: NEON_RED,
   },
   eyeIcon: {
     position: "absolute",
@@ -308,23 +350,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   button: {
-    backgroundColor: PRIMARY_BLUE,
+    backgroundColor: NEON_RED,
     paddingVertical: 16,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 32,
     marginBottom: 20,
-    shadowColor: PRIMARY_BLUE,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 10,
     flexDirection: "row",
     minHeight: 52,
   },
   buttonDisabled: {
     backgroundColor: "#5A5A5A",
-    shadowOpacity: 0.2,
   },
   buttonText: {
     color: "#FFFFFF",
@@ -340,11 +377,11 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   registerLinkText: {
-    color: "#A0A0A0",
+    color: TEXT_MUTED,
     fontSize: 14,
   },
   registerLinkBold: {
-    color: PRIMARY_BLUE,
+    color: NEON_RED,
     fontSize: 14,
     fontWeight: "700",
   },
@@ -354,7 +391,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   forgotPasswordText: {
-    color: PRIMARY_BLUE,
+    color: NEON_RED,
     fontSize: 13,
     fontWeight: "600",
     letterSpacing: 0.3,

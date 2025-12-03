@@ -1,16 +1,26 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { useAuth } from "../hooks/useAuth";
 
 const PRIMARY_BLUE = "#1976D2";
+
+// Paleta cinematográfica profesional tipo streaming
+const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
+const BG_ACCENT = "#1A1A1A";            // Gris oscuro
+const NEON_RED = "#E50914";             // Rojo Netflix profundo
+const NEON_ORANGE = "#D97706";          // Naranja cálido suave
+const TEXT_LIGHT = "#FFFFFF";
+const TEXT_MUTED = "#B0B0B0";
 
 interface Platform {
   id: number;
@@ -28,14 +38,32 @@ export default function SelectPlatformsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Animación del fondo
+  const bgAnimation = new Animated.Value(0);
+  
   useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bgAnimation, {
+          toValue: 1,
+          duration: 6000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(bgAnimation, {
+          toValue: 0,
+          duration: 6000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+    
     loadPlatforms();
   }, []);
 
   const loadPlatforms = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:9999/api/platforms");
+      const response = await fetch("http://192.168.68.103:9999/api/platforms");
       const data = await response.json();
       setPlatforms(data.platforms);
     } catch (error) {
@@ -62,7 +90,7 @@ export default function SelectPlatformsScreen() {
     try {
       setSaving(true);
       const response = await fetch(
-        `http://localhost:9999/api/user/${user?.id}/platforms`,
+        `http://192.168.68.103:9999/api/user/${user?.id}/platforms`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -87,18 +115,38 @@ export default function SelectPlatformsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={PRIMARY_BLUE} />
-      </View>
+      <Animated.View 
+        style={[
+          styles.centerContainer,
+          {
+            backgroundColor: bgAnimation.interpolate({
+              inputRange: [0, 1],
+              outputRange: [BG_DARK, BG_ACCENT],
+            }),
+          }
+        ]}
+      >
+        <ActivityIndicator size="large" color={NEON_RED} />
+      </Animated.View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View 
+      style={[
+        styles.container,
+        {
+          backgroundColor: bgAnimation.interpolate({
+            inputRange: [0, 1],
+            outputRange: [BG_DARK, BG_ACCENT],
+          }),
+        }
+      ]}
+    >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>¿Qué plataformas tienes?</Text>
-        <Text style={styles.subtitle}>Selecciona tus servicios de streaming</Text>
+        <Text style={styles.title}>🎬 Tus Plataformas</Text>
+        <Text style={styles.subtitle}>Selecciona tus servicios de streaming favoritos</Text>
       </View>
 
       {/* Plataformas Grid */}
@@ -116,17 +164,17 @@ export default function SelectPlatformsScreen() {
               <View
                 style={[
                   styles.platformIcon,
-                  { backgroundColor: selectedPlatforms.includes(platform.id) ? platform.color : "#ddd" },
+                  { backgroundColor: selectedPlatforms.includes(platform.id) ? platform.color : "rgba(229,9,20,0.1)" },
                 ]}
               >
-                <Text style={styles.platformInitial}>
-                  {platform.name.charAt(0)}
+                <Text style={styles.platformEmoji}>
+                  {platform.name.substring(0, 3).toUpperCase()}
                 </Text>
               </View>
               <Text style={styles.platformName}>{platform.name}</Text>
               {selectedPlatforms.includes(platform.id) && (
                 <View style={styles.checkmark}>
-                  <Text style={styles.checkmarkText}>✓</Text>
+                  <MaterialCommunityIcons name="check" size={16} color={TEXT_LIGHT} />
                 </View>
               )}
             </TouchableOpacity>
@@ -151,90 +199,96 @@ export default function SelectPlatformsScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1929",
+    backgroundColor: BG_DARK,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0A1929",
+    backgroundColor: BG_DARK,
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 20,
-    backgroundColor: "#0A1929",
+    paddingTop: 50,
+    paddingBottom: 30,
+    backgroundColor: BG_DARK,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: "800",
+    color: TEXT_LIGHT,
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#aaa",
+    fontSize: 15,
+    color: TEXT_MUTED,
+    fontWeight: "500",
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 30,
   },
   platformCard: {
     width: "48%",
-    aspectRatio: 1,
-    borderRadius: 12,
-    backgroundColor: "#1a1a1a",
-    padding: 12,
+    aspectRatio: 1.1,
+    borderRadius: 0,
+    backgroundColor: BG_ACCENT,
+    padding: 16,
     marginBottom: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#333",
+    borderColor: "rgba(229,9,20,0.2)",
   },
   platformCardSelected: {
-    borderColor: PRIMARY_BLUE,
-    backgroundColor: "#0D2847",
+    borderColor: NEON_RED,
+    backgroundColor: "rgba(229,9,20,0.12)",
   },
   platformIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   platformInitial: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
-    color: "#fff",
+    color: TEXT_LIGHT,
+  },
+  platformEmoji: {
+    fontSize: 42,
+    fontWeight: "bold",
   },
   platformName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    color: TEXT_LIGHT,
     textAlign: "center",
   },
   checkmark: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: PRIMARY_BLUE,
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 0,
+    backgroundColor: NEON_RED,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -244,28 +298,33 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 20,
+    paddingBottom: 30,
     borderTopWidth: 1,
-    borderTopColor: "#333",
-    backgroundColor: "#0A1929",
+    borderTopColor: "rgba(229,9,20,0.2)",
+    backgroundColor: BG_DARK,
   },
   selectedCount: {
-    color: "#aaa",
+    color: TEXT_MUTED,
     textAlign: "center",
-    marginBottom: 12,
-    fontSize: 12,
+    marginBottom: 16,
+    fontSize: 13,
+    fontWeight: "500",
   },
   saveButton: {
-    backgroundColor: PRIMARY_BLUE,
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: NEON_RED,
+    paddingVertical: 16,
+    borderRadius: 0,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 50,
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
   saveButtonText: {
-    color: "#fff",
+    color: TEXT_LIGHT,
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });
