@@ -4,8 +4,12 @@ REM Monitorea cambios y hace commits automáticos
 
 cd C:\popFlix_TFG
 
+REM Intervalo por defecto: 3600 segundos (1 hora)
+set INTERVAL=3600
+if not "%1"=="" set INTERVAL=%1
+
 echo Iniciando auto-commit watcher...
-echo Intervalo: 30 segundos
+echo Intervalo: %INTERVAL% segundos
 
 :loop
 git add . 2>nul
@@ -27,5 +31,5 @@ if defined HAS_CHANGES (
     set HAS_CHANGES=
 )
 
-timeout /t 30 /nobreak
+timeout /t %INTERVAL% /nobreak
 goto loop

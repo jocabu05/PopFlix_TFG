@@ -22,8 +22,8 @@ start "popFlix Frontend" cmd /k "cd %PROJECT% && npx expo start"
 timeout /t 3 /nobreak
 
 REM 3. Auto-commit
-echo 3^) Iniciando auto-commit watcher...
-start "popFlix Auto-Commit" cmd /k "cd %PROJECT% && auto-commit-watcher.bat"
+echo 3^) Iniciando auto-commit watcher ^(cada hora^)...
+start "popFlix Auto-Commit" cmd /k "cd %PROJECT% && auto-commit-watcher.bat 3600"
 timeout /t 3 /nobreak
 
 cls

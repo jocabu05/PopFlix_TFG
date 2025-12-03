@@ -40,6 +40,11 @@ const isValidPassword = (password) => {
 };
 
 // Rutas
+// Health check - para verificar que el servidor está activo
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "OK", message: "Backend está funcionando" });
+});
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
@@ -170,9 +175,21 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Health check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ message: "Backend running" });
+// Rutas no encontradas
+app.use((req, res) => {
+  res.status(404).json({ message: "Ruta no encontrada" });
+});
+
+// Error handler global
+app.use((err, req, res, next) => {
+  console.error("Error no capturado:", err);
+  res.status(500).json({ message: "Error interno del servidor", error: err.message });
+});
+
+// Iniciar servidor
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log("✅ Backend listo para recibir peticiones");
 });
 
 app.listen(PORT, () => {
