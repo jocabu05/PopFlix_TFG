@@ -1,143 +1,352 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { useAuth } from "../hooks/useAuth";
 
 // Paleta cinematográfica profesional tipo streaming
-const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
-const BG_ACCENT = "#1A1A1A";            // Gris oscuro
-const NEON_RED = "#E50914";             // Rojo Netflix profundo
-const NEON_ORANGE = "#D97706";          // Naranja cálido suave
+const BG_DARK = "#0F0F0F";
+const BG_ACCENT = "#1A1A1A";
+const NEON_RED = "#E50914";
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";
+const TEXT_MUTED_LIGHT = "#888888";
+
+interface Platform {
+  id: number;
+  name: string;
+  icon: string;
+  color: string;
+}
+
+const getPlatformLogo = (name: string): any => {
+  const logoMap: { [key: string]: any } = {
+    netflix: require("../assets/logos/logo-netflix.png"),
+    "prime video": require("../assets/logos/prime-logo.png"),
+    amazon: require("../assets/logos/prime-logo.png"),
+    disney: require("../assets/logos/disney-logo.jpg"),
+    "disney+": require("../assets/logos/disney-logo.jpg"),
+    hbo: require("../assets/logos/hbo-logo.png"),
+    "hbo max": require("../assets/logos/hbo-logo.png"),
+    hulu: require("../assets/logos/hulu-logo.jpg"),
+    paramount: require("../assets/logos/paramount-logo.png"),
+    "paramount+": require("../assets/logos/paramount-logo.png"),
+    apple: require("../assets/logos/appleTv-logo.png"),
+    "apple tv+": require("../assets/logos/appleTv-logo.png"),
+  };
+
+  const key = name.toLowerCase().trim();
+  return logoMap[key] || logoMap["netflix"];
+};
 
 export default function HomeScreen() {
   const router = useRouter();
-  
-  // Animación del fondo
-  const bgAnimation = new Animated.Value(0);
-  
+  const { user, setPlatformsSelected } = useAuth();
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bgAnimation, {
-          toValue: 1,
-          duration: 6000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(bgAnimation, {
-          toValue: 0,
-          duration: 6000,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
+    loadPlatforms();
   }, []);
 
+  const loadPlatforms = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://192.168.68.103:9999/api/platforms");
+      const data = await response.json();
+      // Filtrar "Otros"
+      const filtered = data.platforms.filter(
+        (p: Platform) => p.name.toLowerCase() !== 'otros'
+      );
+      setPlatforms(filtered);
+    } catch (error) {
+      console.error("Error cargando plataformas:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const togglePlatform = (platformId: number) => {
+    setSelectedPlatforms((prev) =>
+      prev.includes(platformId)
+        ? prev.filter((id) => id !== platformId)
+        : [...prev, platformId]
+    );
+  };
+
+  const savePlatforms = async () => {
+    if (selectedPlatforms.length === 0) {
+      alert("Por favor selecciona al menos una plataforma");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch("http://192.168.68.103:9999/api/users/platforms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id,
+          platformIds: selectedPlatforms,
+        }),
+      });
+
+      if (response.ok) {
+        setPlatformsSelected(true);
+        router.push("/(tabs)");
+      }
+    } catch (error) {
+      console.error("Error guardando plataformas:", error);
+      alert("Error al guardar las plataformas");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={NEON_RED} />
+      </View>
+    );
+  }
+
   return (
-    <Animated.View 
-      style={[
-        styles.container,
-        {
-          backgroundColor: bgAnimation.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [BG_DARK, BG_ACCENT, BG_DARK],
-          }),
-        }
-      ]}
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.contentContainer}
     >
-      {/* Capa de luz animada superior */}
-      <Animated.View 
-        style={[
-          styles.lightOverlay,
-          {
-            opacity: bgAnimation.interpolate({
-              inputRange: [0, 0.5, 1],
-              outputRange: [0.15, 0.35, 0.15],
-            }),
-          }
-        ]}
-      />
-      {/* Capa de luz animada inferior */}
-      <Animated.View 
-        style={[
-          styles.lightOverlayBottom,
-          {
-            opacity: bgAnimation.interpolate({
-              inputRange: [0, 0.5, 1],
-              outputRange: [0.1, 0.2, 0.1],
-            }),
-          }
-        ]}
-      />
-      <Text style={styles.text}>🎬 ¡Bienvenido a POPFLIX!</Text>
-      <Text style={styles.subtitle}>Gracias por unirte a nuestra comunidad</Text>
-      
-      <TouchableOpacity
-        style={styles.shareButton}
-        onPress={() => router.push("/select-platforms")}
-      >
-        <Text style={styles.shareButtonText}>🎬 Seleccionar Plataformas</Text>
-      </TouchableOpacity>
-    </Animated.View>
+      {/* Header Section */}
+      <View style={styles.heroSection}>
+        <Text style={styles.heroTitle}>Bienvenido a POPFLIX</Text>
+        <Text style={styles.heroSubtitle}>Selecciona tus plataformas favoritas</Text>
+      </View>
+
+      {/* Stats Cards */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{platforms.length}</Text>
+          <Text style={styles.statLabel}>Plataformas</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{selectedPlatforms.length}</Text>
+          <Text style={styles.statLabel}>Seleccionadas</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>∞</Text>
+          <Text style={styles.statLabel}>Películas</Text>
+        </View>
+      </View>
+
+      {/* Platforms Grid */}
+      <View style={styles.platformsSection}>
+        <Text style={styles.sectionTitle}>Tus Plataformas</Text>
+        <View style={styles.platformsGrid}>
+          {platforms.map((platform) => (
+            <TouchableOpacity
+              key={platform.id}
+              style={[
+                styles.platformCard,
+                selectedPlatforms.includes(platform.id) && styles.platformCardSelected,
+                hoveredCard === platform.id && styles.platformCardHovered,
+              ]}
+              onPress={() => togglePlatform(platform.id)}
+              onPressIn={() => setHoveredCard(platform.id)}
+              onPressOut={() => setHoveredCard(null)}
+              activeOpacity={0.8}
+            >
+              <Image
+                source={getPlatformLogo(platform.name)}
+                style={styles.logoImage}
+                resizeMode="cover"
+              />
+              <Text style={styles.platformName}>{platform.name}</Text>
+              {selectedPlatforms.includes(platform.id) && (
+                <View style={styles.checkmark}>
+                  <MaterialCommunityIcons name="check" size={16} color={TEXT_LIGHT} />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* CTA Section */}
+      <View style={styles.ctaSection}>
+        <TouchableOpacity
+          style={[styles.mainButton, saving && styles.mainButtonDisabled]}
+          onPress={savePlatforms}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color={TEXT_LIGHT} />
+          ) : (
+            <Text style={styles.mainButtonText}>COMENZAR</Text>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.selectedCountText}>
+          {selectedPlatforms.length} plataforma{selectedPlatforms.length !== 1 ? "s" : ""} seleccionada{selectedPlatforms.length !== 1 ? "s" : ""}
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: BG_DARK,
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+  },
+  centerContainer: {
+    flex: 1,
+    backgroundColor: BG_DARK,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: BG_DARK,
-    padding: 20,
   },
-  lightOverlay: {
-    position: "absolute",
-    top: -80,
-    right: -120,
-    width: 350,
-    height: 350,
-    borderRadius: 175,
-    backgroundColor: NEON_RED,
-    zIndex: 0,
-    opacity: 0.08,
+  heroSection: {
+    alignItems: "center",
+    marginBottom: 16,
   },
-  lightOverlayBottom: {
-    position: "absolute",
-    bottom: -100,
-    left: -150,
-    width: 330,
-    height: 330,
-    borderRadius: 165,
-    backgroundColor: NEON_ORANGE,
-    zIndex: 0,
-    opacity: 0.06,
-  },
-  text: {
+  heroTitle: {
     color: TEXT_LIGHT,
     fontSize: 28,
-    fontWeight: "800",
-    marginBottom: 16,
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    color: TEXT_MUTED,
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 40,
+    fontWeight: "900",
+    marginBottom: 4,
     textAlign: "center",
   },
-  shareButton: {
-    backgroundColor: NEON_RED,
-    paddingVertical: 16,
-    paddingHorizontal: 28,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    borderColor: "rgba(229,9,20,0.6)",
+  heroSubtitle: {
+    color: TEXT_MUTED,
+    fontSize: 13,
+    fontWeight: "500",
+    textAlign: "center",
   },
-  shareButtonText: {
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: BG_ACCENT,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    borderRadius: 0,
+    alignItems: "center",
+    borderTopWidth: 3,
+    borderTopColor: NEON_RED,
+  },
+  statNumber: {
+    color: NEON_RED,
+    fontSize: 24,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: TEXT_MUTED,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  platformsSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
     color: TEXT_LIGHT,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "800",
+    marginBottom: 12,
+  },
+  platformsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  platformCard: {
+    width: "30%",
+    backgroundColor: BG_ACCENT,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 0,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(229,9,20,0.2)",
+    position: "relative",
+  },
+  platformCardSelected: {
+    borderColor: NEON_RED,
+    backgroundColor: "rgba(229,9,20,0.12)",
+  },
+  platformCardHovered: {
+    backgroundColor: "#252525",
+    borderColor: "#FF3535",
+  },
+  logoImage: {
+    width: 70,
+    height: 70,
+    marginBottom: 8,
+    borderRadius: 0,
+  },
+  platformName: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: TEXT_LIGHT,
+    textAlign: "center",
+  },
+  checkmark: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: NEON_RED,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaSection: {
+    marginTop: 16,
+  },
+  mainButton: {
+    backgroundColor: NEON_RED,
+    paddingVertical: 14,
+    borderRadius: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  mainButtonDisabled: {
+    opacity: 0.6,
+  },
+  mainButtonText: {
+    color: TEXT_LIGHT,
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  selectedCountText: {
+    color: TEXT_MUTED,
+    textAlign: "center",
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
 

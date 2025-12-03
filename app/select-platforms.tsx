@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +30,27 @@ interface Platform {
   selected?: boolean;
 }
 
+const getPlatformLogo = (name: string): any => {
+  const logoMap: { [key: string]: any } = {
+    netflix: require("../assets/logos/logo-netflix.png"),
+    "prime video": require("../assets/logos/prime-logo.png"),
+    amazon: require("../assets/logos/prime-logo.png"),
+    disney: require("../assets/logos/disney-logo.jpg"),
+    "disney+": require("../assets/logos/disney-logo.jpg"),
+    hbo: require("../assets/logos/hbo-logo.png"),
+    "hbo max": require("../assets/logos/hbo-logo.png"),
+    hulu: require("../assets/logos/hulu-logo.jpg"),
+    paramount: require("../assets/logos/paramount-logo.png"),
+    "paramount+": require("../assets/logos/paramount-logo.png"),
+    apple: require("../assets/logos/appleTv-logo.png"),
+    "apple tv+": require("../assets/logos/appleTv-logo.png"),
+    otros: require("../assets/logos/logo-netflix.png"),
+  };
+  
+  const key = name.toLowerCase().trim();
+  return logoMap[key] || logoMap["otros"];
+};
+
 export default function SelectPlatformsScreen() {
   const router = useRouter();
   const { user, setPlatformsSelected } = useAuth();
@@ -38,25 +59,7 @@ export default function SelectPlatformsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Animación del fondo
-  const bgAnimation = new Animated.Value(0);
-  
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bgAnimation, {
-          toValue: 1,
-          duration: 6000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(bgAnimation, {
-          toValue: 0,
-          duration: 6000,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-    
     loadPlatforms();
   }, []);
 
@@ -81,6 +84,14 @@ export default function SelectPlatformsScreen() {
     );
   };
 
+  const selectAll = () => {
+    setSelectedPlatforms(platforms.map(p => p.id));
+  };
+
+  const deselectAll = () => {
+    setSelectedPlatforms([]);
+  };
+
   const savePlatforms = async () => {
     if (selectedPlatforms.length === 0) {
       alert("Por favor selecciona al menos una plataforma");
@@ -101,7 +112,7 @@ export default function SelectPlatformsScreen() {
       if (response.ok) {
         setPlatformsSelected(true);
         alert("✅ Plataformas guardadas");
-        router.push("/home");
+        router.push("/(tabs)");
       } else {
         alert("❌ Error guardando plataformas");
       }
@@ -115,34 +126,14 @@ export default function SelectPlatformsScreen() {
 
   if (loading) {
     return (
-      <Animated.View 
-        style={[
-          styles.centerContainer,
-          {
-            backgroundColor: bgAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [BG_DARK, BG_ACCENT],
-            }),
-          }
-        ]}
-      >
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={NEON_RED} />
-      </Animated.View>
+      </View>
     );
   }
 
   return (
-    <Animated.View 
-      style={[
-        styles.container,
-        {
-          backgroundColor: bgAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [BG_DARK, BG_ACCENT],
-          }),
-        }
-      ]}
-    >
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>🎬 Tus Plataformas</Text>
@@ -152,33 +143,31 @@ export default function SelectPlatformsScreen() {
       {/* Plataformas Grid */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.gridContainer}>
-          {platforms.map((platform) => (
-            <TouchableOpacity
-              key={platform.id}
-              style={[
-                styles.platformCard,
-                selectedPlatforms.includes(platform.id) && styles.platformCardSelected,
-              ]}
-              onPress={() => togglePlatform(platform.id)}
-            >
-              <View
+          {platforms.map((platform) => {
+            const isOtros = platform.name.toLowerCase() === 'otros';
+            return !isOtros ? (
+              <TouchableOpacity
+                key={platform.id}
                 style={[
-                  styles.platformIcon,
-                  { backgroundColor: selectedPlatforms.includes(platform.id) ? platform.color : "rgba(229,9,20,0.1)" },
+                  styles.platformCard,
+                  selectedPlatforms.includes(platform.id) && styles.platformCardSelected,
                 ]}
+                onPress={() => togglePlatform(platform.id)}
               >
-                <Text style={styles.platformEmoji}>
-                  {platform.name.substring(0, 3).toUpperCase()}
-                </Text>
-              </View>
-              <Text style={styles.platformName}>{platform.name}</Text>
-              {selectedPlatforms.includes(platform.id) && (
-                <View style={styles.checkmark}>
-                  <MaterialCommunityIcons name="check" size={16} color={TEXT_LIGHT} />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                <Image
+                  source={getPlatformLogo(platform.name)}
+                  style={styles.logoImage}
+                  resizeMode="cover"
+                />
+                <Text style={styles.platformName}>{platform.name}</Text>
+                {selectedPlatforms.includes(platform.id) && (
+                  <View style={styles.checkmark}>
+                    <MaterialCommunityIcons name="check" size={16} color={TEXT_LIGHT} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ) : null;
+          })}
         </View>
       </ScrollView>
 
@@ -199,7 +188,7 @@ export default function SelectPlatformsScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -259,12 +248,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(229,9,20,0.12)",
   },
   platformIcon: {
-    width: 70,
-    height: 70,
+    width: 90,
+    height: 90,
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 90,
+    height: 90,
+    marginBottom: 16,
   },
   platformInitial: {
     fontSize: 32,
@@ -272,12 +266,13 @@ const styles = StyleSheet.create({
     color: TEXT_LIGHT,
   },
   platformEmoji: {
-    fontSize: 42,
-    fontWeight: "bold",
+    fontSize: 54,
+    fontWeight: "900",
+    color: TEXT_LIGHT,
   },
   platformName: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "800",
     color: TEXT_LIGHT,
     textAlign: "center",
   },
@@ -326,5 +321,113 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
     letterSpacing: 0.5,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingRight: 12,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  selectButton: {
+    backgroundColor: NEON_RED,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 36,
+  },
+  deselectButton: {
+    backgroundColor: "rgba(229,9,20,0.3)",
+  },
+  selectButtonText: {
+    color: TEXT_LIGHT,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  selectAllContainer: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(229,9,20,0.2)",
+  },
+  selectAllButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: NEON_RED,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  clearButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "rgba(229,9,20,0.3)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  selectAllText: {
+    color: TEXT_LIGHT,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  quickActionsCard: {
+    backgroundColor: BG_ACCENT,
+    borderRadius: 0,
+    padding: 16,
+    minHeight: 120,
+  },
+  selectAllCard: {
+    backgroundColor: BG_ACCENT,
+    borderWidth: 2,
+    borderColor: NEON_RED,
+    borderRadius: 0,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 200,
+  },
+  cardTitle: {
+    color: TEXT_LIGHT,
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  buttonGroup: {
+    width: "100%",
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: "row",
+    backgroundColor: NEON_RED,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  actionButtonSecondary: {
+    backgroundColor: "rgba(229,9,20,0.3)",
+  },
+  actionButtonText: {
+    color: TEXT_LIGHT,
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

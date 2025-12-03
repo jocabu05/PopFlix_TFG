@@ -406,22 +406,22 @@ const styles = StyleSheet.create({
   contentContainer: { 
     paddingHorizontal: 20, 
     paddingVertical: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   header: { 
     alignItems: "center", 
-    marginBottom: 35, 
-    marginTop: 20 
+    marginBottom: 15, 
+    marginTop: 10 
   },
   logoImage: { 
-    width: 380, 
-    height: 260 
+    width: 350, 
+    height: 220 
   },
   formContainer: { 
     width: "100%" 
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   labelWithIcon: {
     flexDirection: "row",

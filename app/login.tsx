@@ -276,12 +276,12 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     alignItems: "center",
-    marginBottom: 50,
+    marginBottom: 25,
   },
   logo: {
-    width: 380,
-    height: 260,
-    marginBottom: 20,
+    width: 350,
+    height: 220,
+    marginBottom: 15,
   },
   welcomeTitle: {
     fontSize: 26,
