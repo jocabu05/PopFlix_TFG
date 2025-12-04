@@ -481,7 +481,7 @@ export default function HomeScreen() {
         {/* Top 3 Semanal */}
         {!searchQuery && ranking.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Top Valoradas</Text>
+            <Text style={styles.sectionTitle}>Ranking Semanal</Text>
             <Text style={styles.sectionSubtitle}>Las más bien puntuadas</Text>
             <ScrollView
               horizontal
@@ -505,7 +505,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.carouselContainer}
             >
-              {platformMovies.slice(0, 6).map((movie) => (
+              {platformMovies.map((movie) => (
                 <MovieCard
                   key={movie.id}
                   movie={movie}
@@ -550,7 +550,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Grid de películas */}
+        {/* Slider de películas recomendadas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             {searchQuery.length > 1 ? "Resultados de búsqueda" : "Recomendadas"}
@@ -566,7 +566,11 @@ export default function HomeScreen() {
 
           {displayMovies.length > 0 ? (
             <>
-              <View style={styles.movieGrid}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.carouselContainer}
+              >
                 {displayMovies.map((movie) => (
                   <MovieCard 
                     key={movie.id} 
@@ -574,7 +578,7 @@ export default function HomeScreen() {
                     onPress={() => handleMoviePress(movie)}
                   />
                 ))}
-              </View>
+              </ScrollView>
               {/* Load More Button */}
               <TouchableOpacity 
                 style={styles.loadMoreButton}
