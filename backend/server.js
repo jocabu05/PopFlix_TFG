@@ -110,6 +110,20 @@ app.get("/api/user/:userId/platforms", async (req, res) => {
   }
 });
 
+// Obtener todos los géneros
+app.get("/api/genres", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [genres] = await connection.query("SELECT id, name FROM genres ORDER BY name");
+    connection.release();
+    
+    res.json({ genres: genres || [] });
+  } catch (error) {
+    console.error("Error fetching genres:", error);
+    res.status(500).json({ message: "Error al obtener géneros", genres: [] });
+  }
+});
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
