@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PopFlix - Acceso Rápido</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #0a0e27;
+            border: 2px solid #e94560;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(233, 69, 96, 0.3);
+            padding: 50px 40px;
+            max-width: 700px;
+            text-align: center;
+        }
+        h1 {
+            color: #e94560;
+            font-size: 3.5em;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+        }
+        .subtitle {
+            color: #b0b0b0;
+            font-size: 1.1em;
+            margin-bottom: 40px;
+        }
+        .status {
+            background: rgba(233, 69, 96, 0.1);
+            border-left: 4px solid #e94560;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+            text-align: left;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+            font-size: 1.1em;
+            color: #ffffff;
+        }
+        .status-icon {
+            font-size: 1.8em;
+            margin-right: 15px;
+            width: 40px;
+        }
+        .btn {
+            display: inline-block;
+            margin: 15px 8px;
+            padding: 16px 35px;
+            border: 2px solid #e94560;
+            border-radius: 10px;
+            font-size: 1.05em;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            letter-spacing: 1px;
+        }
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #ff5a7a;
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.6);
+            transform: translateY(-3px);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: #e94560;
+        }
+        .btn-secondary:hover {
+            background: #e94560;
+            color: white;
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.6);
+        }
+        .qr-section {
+            margin: 40px 0;
+            padding: 30px;
+            background: rgba(233, 69, 96, 0.05);
+            border-radius: 10px;
+        }
+        .qr-section h3 {
+            color: #e94560;
+            margin-top: 0;
+        }
+        .credentials {
+            background: #1a2332;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .cred-item {
+            margin: 10px 0;
+            color: #b0b0b0;
+        }
+        .cred-label {
+            color: #e94560;
+            font-weight: bold;
+        }
+        .code {
+            background: #0a0e27;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .info-box {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 4px solid #00ff88;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+            color: #b0b0b0;
+        }
+        .info-box strong {
+            color: #00ff88;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e94560;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .step {
+            background: #1a2332;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: left;
+            color: #b0b0b0;
+        }
+        .step-num {
+            background: #e94560;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍿 PopFlix</h1>
+        <p class="subtitle">Sistema de Streaming Profesional</p>
+
+        <div class="status">
+            <div class="status-item">
+                <span class="status-icon">✅</span>
+                <span><strong>Backend:</strong> http://localhost:9999</span>
+            </div>
+            <div class="status-item">
+                <span class="status-icon">✅</span>
+                <span><strong>Frontend:</strong> http://localhost:8081</span>
+            </div>
+            <div class="status-item">
+                <span class="status-icon">✅</span>
+                <span><strong>Base de Datos:</strong> MySQL con 84 películas TMDB</span>
+            </div>
+        </div>
+
+        <div class="qr-section">
+            <h3>📱 Conecta tu Móvil</h3>
+            <p>Escanea el código QR con Expo Go o la cámara de tu teléfono:</p>
+            <p><strong>exp://172.20.10.2:8081</strong></p>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="window.open('exp://172.20.10.2:8081', '_blank')">
+                    📱 Abrir en Expo Go
+                </button>
+                <button class="btn btn-secondary" onclick="window.open('http://localhost:8081', '_blank')">
+                    🌐 Abrir en Web
+                </button>
+            </div>
+        </div>
+
+        <div class="credentials">
+            <h3 style="margin-top: 0; color: #e94560;">🔐 Credenciales de Prueba</h3>
+            <div class="cred-item">
+                <span class="cred-label">Email:</span>
+                <span class="code">test@example.com</span>
+            </div>
+            <div class="cred-item">
+                <span class="cred-label">Password:</span>
+                <span class="code">password123</span>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>✨ Lo que incluye PopFlix:</strong>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>84 películas reales de TMDB</li>
+                <li>Sistema de autenticación</li>
+                <li>Búsqueda de películas</li>
+                <li>Interfaz moderna y responsiva</li>
+                <li>Backend profesional con Node.js + Express</li>
+            </ul>
+        </div>
+
+        <h3 style="color: #e94560; margin-top: 40px;">🚀 Primeros Pasos:</h3>
+        
+        <div class="step">
+            <span class="step-num">1</span>
+            <strong>Login:</strong> Usa test@example.com / password123
+        </div>
+        
+        <div class="step">
+            <span class="step-num">2</span>
+            <strong>Explora:</strong> Navega las películas disponibles
+        </div>
+        
+        <div class="step">
+            <span class="step-num">3</span>
+            <strong>Busca:</strong> Usa el buscador para encontrar películas
+        </div>
+
+        <div class="footer">
+            <p>PopFlix TFG © 2025 • Sistema de Plataformas de Streaming</p>
+            <p>Backend: Node.js + Express + MySQL | Frontend: React Native + Expo</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -114,7 +114,7 @@ export default function LoginScreen() {
         contextLogin(response.user);
         const userName = response.user?.firstName || response.user?.name || "Usuario";
         alert(`✅ Bienvenido ${userName}`);
-        router.push("/select-platforms");
+        router.push("/(tabs)");
       } else {
         alert("❌ Error: No se recibieron datos del usuario");
       }
