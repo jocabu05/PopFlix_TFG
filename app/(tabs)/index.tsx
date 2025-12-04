@@ -15,11 +15,15 @@ import {
 } from "react-native";
 
 const API_URL = "http://172.20.10.2:9999";
-const BG_DARK = "#0F0F0F";
-const BG_ACCENT = "#1A1A1A";
-const NEON_RED = "#B20710";
+const BG_DARK = "#0A0E27";
+const BG_ACCENT = "#0F1535";
+const BG_SECONDARY = "#1a1f3a";
+const NEON_RED = "#FF1744";
+const NEON_BLUE = "#00BCD4";
+const GRADIENT_PURPLE = "#7C3AED";
 const TEXT_LIGHT = "#FFFFFF";
-const TEXT_MUTED = "#B0B0B0";
+const TEXT_MUTED = "#8892B0";
+const ACCENT_GOLD = "#FFD700";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -64,10 +68,10 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   
-  // Pagination states - inicializar con página aleatoria para variedad
-  const [trendingPage, setTrendingPage] = useState(() => Math.floor(Math.random() * 5) + 1);
-  const [genrePage, setGenrePage] = useState(() => Math.floor(Math.random() * 5) + 1);
-  const [platformPage, setPlatformPage] = useState(() => Math.floor(Math.random() * 3) + 1);
+  // Pagination states
+  const [trendingPage, setTrendingPage] = useState(1);
+  const [genrePage, setGenrePage] = useState(1);
+  const [platformPage, setPlatformPage] = useState(1);
   const [searchPage, setSearchPage] = useState(1);
 
   useEffect(() => {
@@ -195,6 +199,14 @@ export default function HomeScreen() {
       year: 2023,
     });
     setModalVisible(true);
+  };
+
+  const handleMovieSelect = (movie: Movie) => {
+    handleMoviePress(movie);
+  };
+
+  const toggleFavorite = (movie: Movie) => {
+    handleAddToFavorites(movie.id);
   };
 
   const handleAddToFavorites = (movieId: number) => {
@@ -728,9 +740,9 @@ const styles = StyleSheet.create({
   },
   heroBanner: {
     width: screenWidth,
-    height: 400,
+    height: 450,
     position: "relative",
-    marginBottom: 24,
+    marginBottom: 32,
   },
   heroBannerImage: {
     width: "100%",
@@ -741,21 +753,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 150,
-    backgroundColor: BG_DARK,
-    opacity: 0.9,
+    height: 200,
+    backgroundImage: "linear-gradient(to top, rgba(10,14,39,0.95), transparent)",
   },
   heroContent: {
     position: "absolute",
-    bottom: 16,
+    bottom: 20,
     left: 16,
     right: 16,
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "800",
     color: TEXT_LIGHT,
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.5,
   },
   heroGenre: {
     fontSize: 14,
@@ -765,13 +777,13 @@ const styles = StyleSheet.create({
   heroMeta: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
     gap: 8,
   },
   heroRating: {
-    fontSize: 14,
+    fontSize: 16,
     color: NEON_RED,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   heroDivider: {
     color: TEXT_MUTED,
@@ -791,35 +803,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: NEON_RED,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: 14,
+    borderRadius: 10,
+    shadowColor: NEON_RED,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   heroPlayText: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     color: TEXT_LIGHT,
   },
   heroInfoButton: {
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 6,
+    backgroundColor: NEON_BLUE,
+    borderRadius: 10,
+    shadowColor: NEON_BLUE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   trendingScroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
   },
   trendingCard: {
-    marginRight: 12,
-    width: 180,
-    borderRadius: 8,
+    marginRight: 16,
+    width: 200,
+    borderRadius: 14,
     overflow: "hidden",
+    backgroundColor: BG_SECONDARY,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   trendingImage: {
     width: "100%",
-    height: 240,
+    height: 270,
     backgroundColor: BG_ACCENT,
   },
   trendingOverlay: {
@@ -830,61 +858,65 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    opacity: 0,
   },
   trendingInfo: {
-    padding: 12,
-    backgroundColor: BG_ACCENT,
+    padding: 14,
+    backgroundColor: BG_SECONDARY,
   },
   trendingTitle: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
     color: TEXT_LIGHT,
     marginBottom: 6,
   },
   trendingMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   trendingRating: {
-    fontSize: 12,
+    fontSize: 13,
     color: NEON_RED,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 16,
-    marginBottom: 24,
-    paddingHorizontal: 12,
-    backgroundColor: BG_ACCENT,
-    borderRadius: 8,
-    height: 44,
+    marginBottom: 28,
+    paddingHorizontal: 14,
+    backgroundColor: BG_SECONDARY,
+    borderRadius: 12,
+    height: 50,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     color: TEXT_LIGHT,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: "500",
   },
   section: {
-    marginBottom: 28,
+    marginBottom: 32,
     paddingHorizontal: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "800",
     color: TEXT_LIGHT,
     marginBottom: 4,
   },
   sectionSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: TEXT_MUTED,
-    marginBottom: 12,
-    fontWeight: "400",
+    marginBottom: 16,
+    fontWeight: "500",
   },
   rankingScroll: {
     marginHorizontal: -16,
@@ -893,20 +925,28 @@ const styles = StyleSheet.create({
   rankingCard: {
     marginRight: 16,
     alignItems: "center",
-    width: 130,
-    borderRadius: 12,
+    width: 150,
+    borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_SECONDARY,
+    borderWidth: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   medalContainer: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    alignItems: "center",
+    top: 8,
+    left: 8,
     zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 8,
+    padding: 6,
   },
   medalText: {
-    fontSize: 28,
+    fontSize: 32,
   },
   positionText: {
     fontSize: 11,
@@ -915,21 +955,21 @@ const styles = StyleSheet.create({
   },
   rankingPoster: {
     width: "100%",
-    height: 160,
+    height: 190,
     backgroundColor: BG_ACCENT,
-    marginTop: 32,
+    marginTop: 36,
   },
   rankingInfo: {
     width: "100%",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     backgroundColor: BG_DARK,
   },
   rankingTitle: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: TEXT_LIGHT,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   ratingContainer: {
     flexDirection: "row",
@@ -937,9 +977,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ratingText: {
-    fontSize: 11,
+    fontSize: 12,
     color: NEON_RED,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   genreScroll: {
     marginHorizontal: -16,
@@ -972,14 +1012,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   movieCard: {
-    width: "48%",
+    width: 160,
+    marginRight: 12,
     marginBottom: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: "hidden",
+    backgroundColor: BG_SECONDARY,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   moviePoster: {
     width: "100%",
-    height: 200,
+    height: 220,
     backgroundColor: BG_ACCENT,
   },
   movieOverlay: {
@@ -995,132 +1042,165 @@ const styles = StyleSheet.create({
   movieTitle: {
     fontSize: 12,
     color: TEXT_LIGHT,
-    marginTop: 8,
+    padding: 10,
     fontWeight: "600",
+    height: 50,
   },
   loadingSpinner: {
     marginVertical: 16,
   },
   noResults: {
-    fontSize: 14,
+    fontSize: 15,
     color: TEXT_MUTED,
     textAlign: "center",
     marginVertical: 32,
+    fontWeight: "500",
   },
   tasksSection: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 24,
     marginTop: 20,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_SECONDARY,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.1)",
   },
   tasksSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "800",
     color: TEXT_LIGHT,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   tasksList: {
-    gap: 8,
+    gap: 10,
   },
   taskItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    opacity: 0.8,
+    paddingVertical: 10,
+    opacity: 0.9,
   },
   taskPending: {
     opacity: 0.6,
   },
   taskCheckbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     backgroundColor: "#4CAF50",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   taskCheckboxPending: {
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    shadowColor: "transparent",
   },
   taskCheckmark: {
     color: TEXT_LIGHT,
     fontWeight: "bold",
-    fontSize: 12,
+    fontSize: 13,
   },
   taskDot: {
     color: TEXT_MUTED,
     fontSize: 16,
   },
   taskText: {
-    fontSize: 13,
-    color: TEXT_LIGHT,
-    flex: 1,
-  },
-  loadMoreButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: NEON_RED,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadMoreButtonText: {
     fontSize: 14,
     color: TEXT_LIGHT,
-    fontWeight: "600",
+    flex: 1,
+    fontWeight: "500",
+  },
+  loadMoreButton: {
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: NEON_RED,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: NEON_RED,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  loadMoreButtonText: {
+    fontSize: 15,
+    color: TEXT_LIGHT,
+    fontWeight: "700",
   },
   toggleContainer: {
     flexDirection: "row",
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginVertical: 16,
     gap: 12,
-    backgroundColor: BG_ACCENT,
-    borderRadius: 10,
-    padding: 4,
+    backgroundColor: BG_SECONDARY,
+    borderRadius: 12,
+    padding: 6,
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
     backgroundColor: "transparent",
   },
   toggleBtnActive: {
     backgroundColor: NEON_RED,
+    shadowColor: NEON_RED,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   toggleText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
     color: TEXT_MUTED,
   },
   toggleTextActive: {
     color: TEXT_LIGHT,
   },
   genreSliderCard: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     marginRight: 12,
-    borderRadius: 10,
-    backgroundColor: BG_ACCENT,
+    borderRadius: 12,
+    backgroundColor: BG_SECONDARY,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   genreSliderCardActive: {
     backgroundColor: NEON_RED,
     borderColor: NEON_RED,
+    shadowColor: NEON_RED,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   genreSliderText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
     color: TEXT_MUTED,
   },
   genreSliderTextActive: {
     color: TEXT_LIGHT,
+  },
+  carouselContainer: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
   },
 });
