@@ -97,23 +97,27 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       console.log("🔄 Iniciando carga de datos...", contentType);
+      
+      // Reset pagination
+      setTrendingPage(1);
+      setGenrePage(1);
+      setPlatformPage(1);
+      setSelectedGenre(null);
+      setSearchResults([]);
 
-      // Cargar trending (películas o series según contentType)
-      let allTrending = [];
+      // Cargar solo PRIMERA página de trending
       try {
         const endpoint = contentType === "series" ? "/api/series/trending" : "/api/movies/trending";
-        for (let page = 1; page <= 5; page++) {
-          const trendingRes = await fetchWithTimeout(`${API_URL}${endpoint}?page=${page}`, 8000);
-          const trendingData = await trendingRes.json();
-          allTrending = [...allTrending, ...(trendingData.movies || trendingData.series || [])];
-        }
-        setTrendingMovies(allTrending);
-        console.log("🎬 Total trending:", allTrending.length);
+        const trendingRes = await fetchWithTimeout(`${API_URL}${endpoint}?page=1`, 8000);
+        const trendingData = await trendingRes.json();
+        setTrendingMovies(trendingData.movies || trendingData.series || []);
+        console.log("🎬 Trending (pág 1):", (trendingData.movies || trendingData.series || []).length);
       } catch (trendingError) {
         console.error("❌ Error cargando trending:", trendingError);
+        setTrendingMovies([]);
       }
 
-      // Cargar ranking semanal (top 3 trending) - solo para películas
+      // Cargar ranking semanal - solo para películas
       if (contentType === "movies") {
         try {
           const rankingRes = await fetchWithTimeout(`${API_URL}/api/weekly-ranking/${user?.id || "1"}`, 8000);
@@ -122,45 +126,40 @@ export default function HomeScreen() {
           console.log("🏆 Ranking:", rankingData.ranking?.length || 0);
         } catch (rankingError) {
           console.error("❌ Error cargando ranking:", rankingError);
+          setRanking([]);
         }
       } else {
-        setRanking([]); // Clear ranking for series
+        setRanking([]);
       }
 
-      // Cargar por género (películas o series según contentType)
+      // Cargar por género - solo PRIMERA página
       if (genres.length > 0) {
         try {
-          let allGenre = [];
           const endpoint = contentType === "series" ? "/api/series/genre" : "/api/movies/genre";
-          for (let page = 1; page <= 3; page++) {
-            const genreRes = await fetchWithTimeout(`${API_URL}${endpoint}/${genres[0].name}?page=${page}`, 8000);
-            const genreData = await genreRes.json();
-            allGenre = [...allGenre, ...(genreData.movies || genreData.series || [])];
-          }
-          setGenreMovies(allGenre);
-          console.log("🎭 Género:", allGenre.length);
+          const genreRes = await fetchWithTimeout(`${API_URL}${endpoint}/${genres[0].name}?page=1`, 8000);
+          const genreData = await genreRes.json();
+          setGenreMovies(genreData.movies || genreData.series || []);
+          console.log("🎭 Género (pág 1):", (genreData.movies || genreData.series || []).length);
         } catch (genreError) {
           console.error("❌ Error cargando género:", genreError);
+          setGenreMovies([]);
         }
       }
 
-      // Cargar por plataformas - SOLO PELÍCULAS (no hay endpoint de series)
+      // Cargar por plataformas - solo PRIMERA página
       if (user?.id) {
         try {
-          let allPlatform = [];
-          // Siempre usar endpoint de películas para plataformas
-          for (let page = 1; page <= 3; page++) {
-            const platformRes = await fetchWithTimeout(`${API_URL}/api/movies/user/${user.id}/by-platforms?page=${page}`, 8000);
-            const platformData = await platformRes.json();
-            allPlatform = [...allPlatform, ...(platformData.movies || [])];
-          }
-          setPlatformMovies(allPlatform);
-          console.log("📱 Plataformas:", allPlatform.length);
+          const endpoint = contentType === "series" ? "/api/series/user" : "/api/movies/user";
+          const platformRes = await fetchWithTimeout(`${API_URL}${endpoint}/${user.id}/by-platforms?page=1`, 8000);
+          const platformData = await platformRes.json();
+          setPlatformMovies(platformData.movies || platformData.series || []);
+          console.log("📱 Plataformas (pág 1):", (platformData.movies || platformData.series || []).length);
         } catch (platformError) {
           console.error("❌ Error cargando por plataformas:", platformError);
+          setPlatformMovies([]);
         }
       }
-      console.log("✅ Datos cargados");
+      console.log("✅ Datos cargados (pág 1 únicamente)");
     } catch (error) {
       console.error("❌ Error en loadData:", error);
     } finally {
@@ -259,8 +258,10 @@ export default function HomeScreen() {
       const endpoint = contentType === "series" ? "/api/series/trending" : "/api/movies/trending";
       const res = await fetch(`${API_URL}${endpoint}?page=${nextPage}`);
       const data = await res.json();
-      setTrendingMovies([...trendingMovies, ...(data.movies || data.series || [])]);
+      const newMovies = data.movies || data.series || [];
+      setTrendingMovies([...trendingMovies, ...newMovies]);
       setTrendingPage(nextPage);
+      console.log(`📄 Trending página ${nextPage} cargada: ${newMovies.length} items`);
     } catch (error) {
       console.error("Error loading more trending movies:", error);
     }
@@ -273,8 +274,10 @@ export default function HomeScreen() {
       const endpoint = contentType === "series" ? "/api/series/genre" : "/api/movies/genre";
       const res = await fetch(`${API_URL}${endpoint}/${selectedGenre.name}?page=${nextPage}`);
       const data = await res.json();
-      setGenreMovies([...genreMovies, ...(data.movies || data.series || [])]);
+      const newMovies = data.movies || data.series || [];
+      setGenreMovies([...genreMovies, ...newMovies]);
       setGenrePage(nextPage);
+      console.log(`📄 Género página ${nextPage} cargada: ${newMovies.length} items`);
     } catch (error) {
       console.error("Error loading more genre movies:", error);
     }
@@ -286,8 +289,10 @@ export default function HomeScreen() {
       const endpoint = contentType === "series" ? "/api/series/search" : "/api/movies/search";
       const res = await fetch(`${API_URL}${endpoint}/${searchQuery}?page=${nextPage}`);
       const data = await res.json();
-      setSearchResults([...searchResults, ...(data.movies || data.series || [])]);
+      const newResults = data.movies || data.series || [];
+      setSearchResults([...searchResults, ...newResults]);
       setSearchPage(nextPage);
+      console.log(`📄 Búsqueda página ${nextPage} cargada: ${newResults.length} items`);
     } catch (error) {
       console.error("Error loading more search results:", error);
     }

@@ -730,6 +730,139 @@ app.delete("/api/favorites/:userId/:movieId", async (req, res) => {
   }
 });
 
+// ============ ENDPOINTS DE SERIES ============
+
+// Series trending
+app.get("/api/series/trending", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    
+    const [series] = await connection.query(
+      `SELECT s.* FROM series s 
+       ORDER BY s.popularity DESC 
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    
+    connection.release();
+    
+    res.json({ 
+      series: series || [],
+      page,
+      limit,
+      total: series?.length || 0
+    });
+  } catch (error) {
+    console.error("Error fetching series:", error);
+    res.status(500).json({ message: "Error al obtener series", error: error.message });
+  }
+});
+
+// Series por género
+app.get("/api/series/genre/:genreName", async (req, res) => {
+  try {
+    const { genreName } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    
+    const [series] = await connection.query(
+      `SELECT DISTINCT s.* FROM series s
+       INNER JOIN series_genres sg ON s.id = sg.series_id
+       INNER JOIN genres g ON sg.genre_id = g.id
+       WHERE g.name = ?
+       ORDER BY s.popularity DESC
+       LIMIT ? OFFSET ?`,
+      [genreName, limit, offset]
+    );
+    
+    connection.release();
+    
+    res.json({ 
+      series: series || [],
+      genre: genreName,
+      page,
+      limit
+    });
+  } catch (error) {
+    console.error("Error fetching series by genre:", error);
+    res.status(500).json({ message: "Error al obtener series por género", error: error.message });
+  }
+});
+
+// Buscar series
+app.get("/api/series/search/:query", async (req, res) => {
+  try {
+    const { query } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    
+    const [series] = await connection.query(
+      `SELECT * FROM series 
+       WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
+       ORDER BY popularity DESC
+       LIMIT ? OFFSET ?`,
+      [`%${query.toLowerCase()}%`, `%${query.toLowerCase()}%`, limit, offset]
+    );
+    
+    connection.release();
+    
+    res.json({ 
+      series: series || [],
+      query,
+      page,
+      limit
+    });
+  } catch (error) {
+    console.error("Error searching series:", error);
+    res.status(500).json({ message: "Error al buscar series", error: error.message });
+  }
+});
+
+// Series por plataformas del usuario
+app.get("/api/series/user/:userId/by-platforms", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    
+    const [series] = await connection.query(
+      `SELECT DISTINCT s.* FROM series s
+       INNER JOIN series_platforms sp ON s.id = sp.series_id
+       INNER JOIN user_platforms up ON sp.platform_id = up.platform_id
+       WHERE up.user_id = ?
+       ORDER BY s.popularity DESC
+       LIMIT ? OFFSET ?`,
+      [userId, limit, offset]
+    );
+    
+    connection.release();
+    
+    res.json({ 
+      series: series || [],
+      userId,
+      page,
+      limit,
+      count: series?.length || 0
+    });
+  } catch (error) {
+    console.error("Error fetching user series:", error);
+    res.status(500).json({ message: "Error al obtener series del usuario", error: error.message });
+  }
+});
+
 // Rutas no encontradas
 app.use((req, res) => {
   res.status(404).json({ message: "Ruta no encontrada" });
