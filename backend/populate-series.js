@@ -40,7 +40,7 @@ const series = [
     number_of_seasons: 8,
     number_of_episodes: 73,
     status: "Ended",
-    genres: [10765, 18] // Sci-Fi & Fantasy, Drama
+    genres: [14, 18] // Fantasy, Drama
   },
   {
     tmdb_id: 1668,
@@ -100,7 +100,7 @@ const series = [
     number_of_seasons: 4,
     number_of_episodes: 13,
     status: "Ended",
-    genres: [18, 80] // Drama, Crime
+    genres: [18, 9648] // Drama, Mystery
   },
   {
     tmdb_id: 1409,
@@ -130,7 +130,7 @@ const series = [
     number_of_seasons: 3,
     number_of_episodes: 24,
     status: "Returning",
-    genres: [10765, 18] // Sci-Fi & Fantasy, Drama
+    genres: [14, 28] // Fantasy, Action
   },
   {
     tmdb_id: 456,
@@ -160,7 +160,7 @@ const series = [
     number_of_seasons: 13,
     number_of_episodes: 174,
     status: "Returning",
-    genres: [10765, 18] // Sci-Fi & Fantasy, Drama
+    genres: [14, 18] // Fantasy, Drama
   },
   {
     tmdb_id: 1433,
@@ -175,7 +175,7 @@ const series = [
     number_of_seasons: 1,
     number_of_episodes: 8,
     status: "Ended",
-    genres: [18, 80] // Drama, Crime
+    genres: [18, 9648] // Drama, Mystery
   },
   {
     tmdb_id: 2543,
@@ -190,7 +190,7 @@ const series = [
     number_of_seasons: 4,
     number_of_episodes: 36,
     status: "Ended",
-    genres: [10765, 18] // Sci-Fi & Fantasy, Drama
+    genres: [14, 878] // Fantasy, Science Fiction
   }
 ];
 
@@ -199,11 +199,16 @@ async function populateSeries() {
 
   try {
     console.log("🔄 Iniciando inserción de series...");
+    
+    // Primero, limpiar series existentes para repoblar
+    await connection.query("DELETE FROM series_genres");
+    await connection.query("DELETE FROM series_platforms");
+    await connection.query("DELETE FROM series");
 
     for (const s of series) {
       // Insertar serie
       await connection.query(
-        `INSERT IGNORE INTO series (tmdb_id, title, description, poster_url, backdrop_url, first_air_date, last_air_date, rating, popularity, number_of_seasons, number_of_episodes, status)
+        `INSERT INTO series (tmdb_id, title, description, poster_url, backdrop_url, first_air_date, last_air_date, rating, popularity, number_of_seasons, number_of_episodes, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [s.tmdb_id, s.title, s.description, s.poster_url, s.backdrop_url, s.first_air_date, s.last_air_date, s.rating, s.popularity, s.number_of_seasons, s.number_of_episodes, s.status]
       );
@@ -214,14 +219,22 @@ async function populateSeries() {
 
       // Insertar géneros
       for (const genreId of s.genres) {
-        await connection.query("INSERT IGNORE INTO series_genres (series_id, genre_id) VALUES (?, ?)", [seriesId, genreId]);
+        try {
+          await connection.query("INSERT INTO series_genres (series_id, genre_id) VALUES (?, ?)", [seriesId, genreId]);
+        } catch (e) {
+          console.warn(`⚠️  Genre ${genreId} might not exist for series ${s.title}`);
+        }
       }
 
       // Asignar a plataformas (aleatoriamente)
       const platformIds = [1, 2, 3, 4, 5];
       const shuffled = platformIds.sort(() => Math.random() - 0.5).slice(0, Math.ceil(Math.random() * 3) + 1);
       for (const platformId of shuffled) {
-        await connection.query("INSERT IGNORE INTO series_platforms (series_id, platform_id) VALUES (?, ?)", [seriesId, platformId]);
+        try {
+          await connection.query("INSERT INTO series_platforms (series_id, platform_id) VALUES (?, ?)", [seriesId, platformId]);
+        } catch (e) {
+          console.warn(`⚠️  Platform ${platformId} might not exist`);
+        }
       }
 
       console.log(`✅ Serie insertada: ${s.title}`);
