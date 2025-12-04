@@ -50,6 +50,7 @@ const genres = [
 
 export default function HomeScreen() {
   const { user } = useAuthContext();
+  const [contentType, setContentType] = useState<"movies" | "series">("movies");
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [genreMovies, setGenreMovies] = useState<Movie[]>([]);
   const [platformMovies, setPlatformMovies] = useState<Movie[]>([]);
@@ -475,6 +476,26 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Toggle Películas / Series */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, contentType === "movies" && styles.toggleBtnActive]}
+            onPress={() => setContentType("movies")}
+          >
+            <Text style={[styles.toggleText, contentType === "movies" && styles.toggleTextActive]}>
+              🎬 Películas
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, contentType === "series" && styles.toggleBtnActive]}
+            onPress={() => setContentType("series")}
+          >
+            <Text style={[styles.toggleText, contentType === "series" && styles.toggleTextActive]}>
+              📺 Series
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Carrusel de tendencia */}
         <TrendingCarousel />
 
@@ -518,36 +539,61 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Géneros */}
+        {/* Géneros - Slider */}
         {!searchQuery && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Explorar por Género</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.genreScroll}
-            >
-              {genres.map((genre) => (
-                <TouchableOpacity
-                  key={genre.name}
-                  style={[
-                    styles.genreChip,
-                    selectedGenre?.id === genre.id && styles.genreChipActive,
-                  ]}
-                  onPress={() => handleGenreFilter(genre)}
-                >
-                  <Text
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Explorar por Género</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.carouselContainer}
+              >
+                {genres.map((genre) => (
+                  <TouchableOpacity
+                    key={genre.name}
                     style={[
-                      styles.genreChipText,
-                      selectedGenre?.id === genre.id && styles.genreChipTextActive,
+                      styles.genreSliderCard,
+                      selectedGenre?.id === genre.id && styles.genreSliderCardActive,
                     ]}
+                    onPress={() => handleGenreFilter(genre)}
                   >
-                    {genre.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+                    <Text
+                      style={[
+                        styles.genreSliderText,
+                        selectedGenre?.id === genre.id && styles.genreSliderTextActive,
+                      ]}
+                    >
+                      {genre.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Películas del género seleccionado */}
+            {selectedGenre && genreMovies.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{selectedGenre.name}</Text>
+                <Text style={styles.sectionSubtitle}>Películas destacadas</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.carouselContainer}
+                >
+                  {genreMovies.map((movie) => (
+                    <MovieCard
+                      key={movie.id}
+                      movie={movie}
+                      onPress={() => handleMovieSelect(movie)}
+                      isFavorite={favorites.has(movie.id)}
+                      onFavoritePress={() => toggleFavorite(movie)}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </>
         )}
 
         {/* Slider de películas recomendadas */}
@@ -1026,5 +1072,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: TEXT_LIGHT,
     fontWeight: "600",
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginVertical: 12,
+    gap: 12,
+    backgroundColor: BG_ACCENT,
+    borderRadius: 10,
+    padding: 4,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  toggleBtnActive: {
+    backgroundColor: NEON_RED,
+  },
+  toggleText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: TEXT_MUTED,
+  },
+  toggleTextActive: {
+    color: TEXT_LIGHT,
+  },
+  genreSliderCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 12,
+    borderRadius: 10,
+    backgroundColor: BG_ACCENT,
+    borderWidth: 2,
+    borderColor: "transparent",
+    justifyContent: "center",
+  },
+  genreSliderCardActive: {
+    backgroundColor: NEON_RED,
+    borderColor: NEON_RED,
+  },
+  genreSliderText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: TEXT_MUTED,
+  },
+  genreSliderTextActive: {
+    color: TEXT_LIGHT,
   },
 });
