@@ -15,15 +15,16 @@ import {
 } from "react-native";
 
 const API_URL = "http://172.20.10.2:9999";
-const BG_DARK = "#0A0E27";
-const BG_ACCENT = "#0F1535";
-const BG_SECONDARY = "#1a1f3a";
-const NEON_RED = "#FF1744";
-const NEON_BLUE = "#00BCD4";
-const GRADIENT_PURPLE = "#7C3AED";
-const TEXT_LIGHT = "#FFFFFF";
-const TEXT_MUTED = "#8892B0";
-const ACCENT_GOLD = "#FFD700";
+const BG_DARK = "#0d1b2a";
+const BG_CARD = "#1a2f45";
+const GRADIENT_BLUE = "#0f3460";
+const GRADIENT_PURPLE = "#533483";
+const ACCENT_CYAN = "#00d9ff";
+const ACCENT_LIME = "#39ff14";
+const ACCENT_PINK = "#ff006e";
+const ACCENT_ORANGE = "#ff6b35";
+const TEXT_LIGHT = "#ffffff";
+const TEXT_MUTED = "#b0b9c1";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -92,50 +93,57 @@ export default function HomeScreen() {
       setLoading(true);
       console.log("🔄 Iniciando carga de datos...");
 
-      // Cargar películas trending con paginación
+      // Cargar MÁS películas trending (sin límite)
+      let allTrending = [];
       try {
-        console.log(`📍 Fetch trending: ${API_URL}/api/movies/trending?page=${trendingPage}`);
-        const trendingRes = await fetchWithTimeout(`${API_URL}/api/movies/trending?page=${trendingPage}`, 8000);
-        console.log("✅ Response received:", trendingRes.ok, trendingRes.status);
-        const trendingData = await trendingRes.json();
-        console.log("🎬 Trending data:", trendingData.movies?.length || 0, "películas");
-        setTrendingMovies(trendingPage === 1 ? (trendingData.movies || []) : [...trendingMovies, ...(trendingData.movies || [])]);
+        for (let page = 1; page <= 5; page++) {
+          const trendingRes = await fetchWithTimeout(`${API_URL}/api/movies/trending?page=${page}`, 8000);
+          const trendingData = await trendingRes.json();
+          allTrending = [...allTrending, ...(trendingData.movies || [])];
+        }
+        setTrendingMovies(allTrending);
+        console.log("🎬 Total trending:", allTrending.length);
       } catch (trendingError) {
         console.error("❌ Error cargando trending:", trendingError);
       }
 
       // Cargar ranking semanal (top 3 trending)
       try {
-        console.log(`📍 Fetch ranking: ${API_URL}/api/weekly-ranking/${user?.id || "1"}`);
         const rankingRes = await fetchWithTimeout(`${API_URL}/api/weekly-ranking/${user?.id || "1"}`, 8000);
         const rankingData = await rankingRes.json();
-        console.log("🏆 Ranking data:", rankingData.ranking?.length || 0, "películas");
         setRanking(rankingData.ranking || []);
+        console.log("🏆 Ranking:", rankingData.ranking?.length || 0);
       } catch (rankingError) {
         console.error("❌ Error cargando ranking:", rankingError);
       }
 
-      // Cargar películas del primer género por defecto
+      // Cargar películas del primer género (MÁS)
       if (genres.length > 0) {
         try {
-          console.log(`📍 Fetch genre: ${API_URL}/api/movies/genre/${genres[0].name}?page=${genrePage}`);
-          const genreRes = await fetchWithTimeout(`${API_URL}/api/movies/genre/${genres[0].name}?page=${genrePage}`, 8000);
-          const genreData = await genreRes.json();
-          console.log("🎭 Genre data:", genreData.movies?.length || 0, "películas");
-          setGenreMovies(genrePage === 1 ? (genreData.movies || []) : [...genreMovies, ...(genreData.movies || [])]);
+          let allGenre = [];
+          for (let page = 1; page <= 3; page++) {
+            const genreRes = await fetchWithTimeout(`${API_URL}/api/movies/genre/${genres[0].name}?page=${page}`, 8000);
+            const genreData = await genreRes.json();
+            allGenre = [...allGenre, ...(genreData.movies || [])];
+          }
+          setGenreMovies(allGenre);
+          console.log("🎭 Género:", allGenre.length);
         } catch (genreError) {
           console.error("❌ Error cargando género:", genreError);
         }
       }
 
-      // Cargar películas por plataformas seleccionadas
+      // Cargar películas por plataformas (MÁS)
       if (user?.id) {
         try {
-          console.log(`📍 Fetch by platforms: ${API_URL}/api/movies/user/${user.id}/by-platforms?page=${platformPage}`);
-          const platformRes = await fetchWithTimeout(`${API_URL}/api/movies/user/${user.id}/by-platforms?page=${platformPage}`, 8000);
-          const platformData = await platformRes.json();
-          console.log("📱 Platform movies:", platformData.movies?.length || 0, "películas");
-          setPlatformMovies(platformPage === 1 ? (platformData.movies || []) : [...platformMovies, ...(platformData.movies || [])]);
+          let allPlatform = [];
+          for (let page = 1; page <= 3; page++) {
+            const platformRes = await fetchWithTimeout(`${API_URL}/api/movies/user/${user.id}/by-platforms?page=${page}`, 8000);
+            const platformData = await platformRes.json();
+            allPlatform = [...allPlatform, ...(platformData.movies || [])];
+          }
+          setPlatformMovies(allPlatform);
+          console.log("📱 Plataformas:", allPlatform.length);
         } catch (platformError) {
           console.error("❌ Error cargando películas por plataformas:", platformError);
         }
@@ -285,7 +293,7 @@ export default function HomeScreen() {
         case 3:
           return "#CD7F32"; // Bronce
         default:
-          return NEON_RED;
+          return ACCENT_PINK;
       }
     };
 
@@ -311,7 +319,7 @@ export default function HomeScreen() {
             <MaterialCommunityIcons
               name="star"
               size={14}
-              color={NEON_RED}
+              color={ACCENT_PINK}
             />
             <Text style={styles.ratingText}>{movie.rating}</Text>
           </View>
@@ -330,7 +338,7 @@ export default function HomeScreen() {
         <MaterialCommunityIcons
           name="play-circle"
           size={48}
-          color={NEON_RED}
+          color={ACCENT_PINK}
         />
       </View>
       <Text style={styles.movieTitle} numberOfLines={2}>
@@ -362,7 +370,7 @@ export default function HomeScreen() {
             <MaterialCommunityIcons
               name="star"
               size={16}
-              color={NEON_RED}
+              color={ACCENT_PINK}
             />
             <Text style={styles.heroRating}>{heroMovie.rating}</Text>
             <Text style={styles.heroDivider}>•</Text>
@@ -382,7 +390,7 @@ export default function HomeScreen() {
               <MaterialCommunityIcons
                 name="information"
                 size={20}
-                color={NEON_RED}
+                color={ACCENT_PINK}
               />
             </TouchableOpacity>
           </View>
@@ -420,7 +428,7 @@ export default function HomeScreen() {
                 <MaterialCommunityIcons
                   name="play-circle"
                   size={40}
-                  color={NEON_RED}
+                  color={ACCENT_PINK}
                 />
               </View>
               <View style={styles.trendingInfo}>
@@ -431,7 +439,7 @@ export default function HomeScreen() {
                   <MaterialCommunityIcons
                     name="star"
                     size={12}
-                    color={NEON_RED}
+                    color={ACCENT_PINK}
                   />
                   <Text style={styles.trendingRating}>{movie.rating}</Text>
                 </View>
@@ -446,7 +454,7 @@ export default function HomeScreen() {
   if (loading && trendingMovies.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color={NEON_RED} />
+        <ActivityIndicator size="large" color={ACCENT_PINK} />
       </View>
     );
   }
@@ -495,7 +503,7 @@ export default function HomeScreen() {
             onPress={() => setContentType("movies")}
           >
             <Text style={[styles.toggleText, contentType === "movies" && styles.toggleTextActive]}>
-              🎬 Películas
+              MOVIES
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -503,7 +511,7 @@ export default function HomeScreen() {
             onPress={() => setContentType("series")}
           >
             <Text style={[styles.toggleText, contentType === "series" && styles.toggleTextActive]}>
-              📺 Series
+              SERIES
             </Text>
           </TouchableOpacity>
         </View>
@@ -617,7 +625,7 @@ export default function HomeScreen() {
           {searching && (
             <ActivityIndicator
               size="small"
-              color={NEON_RED}
+              color={ACCENT_PINK}
               style={styles.loadingSpinner}
             />
           )}
@@ -637,19 +645,6 @@ export default function HomeScreen() {
                   />
                 ))}
               </ScrollView>
-              {/* Load More Button */}
-              <TouchableOpacity 
-                style={styles.loadMoreButton}
-                onPress={
-                  searchQuery.length > 1 
-                    ? loadMoreSearch 
-                    : selectedGenre 
-                    ? loadMoreGenre 
-                    : loadMoreTrending
-                }
-              >
-                <Text style={styles.loadMoreButtonText}>Cargar más películas</Text>
-              </TouchableOpacity>
             </>
           ) : (
             <Text style={styles.noResults}>
@@ -737,12 +732,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG_DARK,
+    backgroundImage: `linear-gradient(135deg, ${BG_DARK} 0%, ${GRADIENT_PURPLE} 100%)`,
   },
   heroBanner: {
     width: screenWidth,
-    height: 450,
+    height: 500,
     position: "relative",
     marginBottom: 32,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginHorizontal: 8,
+    marginTop: 8,
+    shadowColor: ACCENT_PINK,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
   },
   heroBannerImage: {
     width: "100%",
@@ -782,7 +787,7 @@ const styles = StyleSheet.create({
   },
   heroRating: {
     fontSize: 16,
-    color: NEON_RED,
+    color: ACCENT_PINK,
     fontWeight: "700",
   },
   heroDivider: {
@@ -802,14 +807,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: NEON_RED,
-    paddingVertical: 14,
-    borderRadius: 10,
-    shadowColor: NEON_RED,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: ACCENT_PINK,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: ACCENT_PINK,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    elevation: 10,
   },
   heroPlayText: {
     fontSize: 15,
@@ -821,9 +826,9 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: NEON_BLUE,
+    backgroundColor: ACCENT_CYAN,
     borderRadius: 10,
-    shadowColor: NEON_BLUE,
+    shadowColor: ACCENT_CYAN,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -835,20 +840,22 @@ const styles = StyleSheet.create({
   },
   trendingCard: {
     marginRight: 16,
-    width: 200,
-    borderRadius: 14,
+    width: 180,
+    borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: BG_SECONDARY,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    backgroundColor: BG_CARD,
+    borderWidth: 1,
+    borderColor: "rgba(0, 228, 255, 0.3)",
+    shadowColor: ACCENT_CYAN,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 10,
   },
   trendingImage: {
     width: "100%",
     height: 270,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
   },
   trendingOverlay: {
     position: "absolute",
@@ -863,7 +870,9 @@ const styles = StyleSheet.create({
   },
   trendingInfo: {
     padding: 14,
-    backgroundColor: BG_SECONDARY,
+    backgroundColor: "rgba(15, 21, 53, 0.8)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 228, 255, 0.2)",
   },
   trendingTitle: {
     fontSize: 14,
@@ -878,7 +887,7 @@ const styles = StyleSheet.create({
   },
   trendingRating: {
     fontSize: 13,
-    color: NEON_RED,
+    color: ACCENT_PINK,
     fontWeight: "700",
   },
   searchContainer: {
@@ -887,11 +896,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 28,
     paddingHorizontal: 14,
-    backgroundColor: BG_SECONDARY,
-    borderRadius: 12,
-    height: 50,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(15, 21, 53, 0.7)",
+    borderRadius: 14,
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: "rgba(0, 228, 255, 0.4)",
+    shadowColor: ACCENT_CYAN,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   searchIcon: {
     marginRight: 10,
@@ -925,16 +939,16 @@ const styles = StyleSheet.create({
   rankingCard: {
     marginRight: 16,
     alignItems: "center",
-    width: 150,
-    borderRadius: 14,
+    width: 140,
+    borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: BG_SECONDARY,
-    borderWidth: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
+    backgroundColor: BG_CARD,
+    borderWidth: 2,
+    shadowColor: GRADIENT_PURPLE,
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 14,
+    elevation: 10,
   },
   medalContainer: {
     position: "absolute",
@@ -956,14 +970,16 @@ const styles = StyleSheet.create({
   rankingPoster: {
     width: "100%",
     height: 190,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     marginTop: 36,
   },
   rankingInfo: {
     width: "100%",
     paddingHorizontal: 10,
     paddingVertical: 10,
-    backgroundColor: BG_DARK,
+    backgroundColor: "rgba(10, 14, 39, 0.9)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(179, 68, 255, 0.3)",
   },
   rankingTitle: {
     fontSize: 13,
@@ -978,7 +994,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 12,
-    color: NEON_RED,
+    color: ACCENT_PINK,
     fontWeight: "700",
   },
   genreScroll: {
@@ -990,13 +1006,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     borderRadius: 20,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     borderWidth: 1,
     borderColor: "transparent",
   },
   genreChipActive: {
-    backgroundColor: NEON_RED,
-    borderColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
+    borderColor: ACCENT_PINK,
   },
   genreChipText: {
     color: TEXT_MUTED,
@@ -1012,22 +1028,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   movieCard: {
-    width: 160,
-    marginRight: 12,
+    width: 150,
+    marginRight: 14,
     marginBottom: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: BG_SECONDARY,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: BG_CARD,
+    borderWidth: 1,
+    borderColor: "rgba(255, 42, 109, 0.2)",
+    shadowColor: ACCENT_PINK,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
   },
   moviePoster: {
     width: "100%",
     height: 220,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
   },
   movieOverlay: {
     position: "absolute",
@@ -1060,9 +1078,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 24,
     marginTop: 20,
-    backgroundColor: BG_SECONDARY,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(15, 21, 53, 0.5)",
+    borderTopWidth: 1.5,
+    borderTopColor: "rgba(0, 228, 255, 0.3)",
   },
   tasksSectionTitle: {
     fontSize: 18,
@@ -1119,11 +1137,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    backgroundColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: NEON_RED,
+    shadowColor: ACCENT_PINK,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1137,11 +1155,13 @@ const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: "row",
     marginHorizontal: 16,
-    marginVertical: 16,
+    marginVertical: 18,
     gap: 12,
-    backgroundColor: BG_SECONDARY,
-    borderRadius: 12,
+    backgroundColor: "rgba(15, 21, 53, 0.6)",
+    borderRadius: 14,
     padding: 6,
+    borderWidth: 1,
+    borderColor: "rgba(0, 228, 255, 0.2)",
   },
   toggleBtn: {
     flex: 1,
@@ -1152,8 +1172,8 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   toggleBtnActive: {
-    backgroundColor: NEON_RED,
-    shadowColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
+    shadowColor: ACCENT_PINK,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1168,24 +1188,24 @@ const styles = StyleSheet.create({
     color: TEXT_LIGHT,
   },
   genreSliderCard: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 14,
     marginRight: 12,
-    borderRadius: 12,
-    backgroundColor: BG_SECONDARY,
+    borderRadius: 14,
+    backgroundColor: "rgba(15, 21, 53, 0.5)",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(0, 228, 255, 0.3)",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: ACCENT_CYAN,
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   genreSliderCardActive: {
-    backgroundColor: NEON_RED,
-    borderColor: NEON_RED,
-    shadowColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
+    borderColor: ACCENT_PINK,
+    shadowColor: ACCENT_PINK,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -1204,3 +1224,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 });
+
