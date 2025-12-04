@@ -62,7 +62,7 @@ export default function HomeScreen() {
   const loadPlatforms = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://192.168.68.103:9999/api/platforms");
+      const response = await fetch("http://172.20.10.2:9999/api/platforms");
       const data = await response.json();
       console.log("Plataformas cargadas:", data);
       const filtered = data.platforms.filter(
@@ -140,7 +140,7 @@ export default function HomeScreen() {
       console.log("Enviando:", JSON.stringify(payload));
       
       const response = await fetch(
-        `http://192.168.68.103:9999/api/user/${user.id}/platforms`,
+        `http://172.20.10.2:9999/api/user/${user.id}/platforms`,
         {
           method: "POST",
           headers: { 

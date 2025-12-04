@@ -222,6 +222,62 @@ function getFictionalReviews() {
   return shuffled.slice(0, Math.floor(Math.random() * 2) + 2);
 }
 
+// Función para obtener watch/providers (dónde ver la película)
+async function getWatchProviders(movieId) {
+  try {
+    const response = await axios.get(
+      `${TMDB_BASE_URL}/movie/${movieId}/watch/providers`,
+      {
+        params: {
+          api_key: TMDB_API_KEY,
+        },
+      }
+    );
+
+    // Obtener datos de España (ES)
+    const esData = response.data.results?.ES;
+    
+    if (!esData) {
+      return [];
+    }
+
+    // Retornar los provider IDs disponibles
+    const providers = [];
+    
+    if (esData.flatrate) {
+      // Streaming providers (Netflix, HBO, Prime, Disney+, etc.)
+      providers.push(...esData.flatrate.map(p => p.provider_id));
+    }
+    
+    if (esData.rent) {
+      // Rental providers
+      providers.push(...esData.rent.map(p => p.provider_id));
+    }
+    
+    if (esData.buy) {
+      // Purchase providers
+      providers.push(...esData.buy.map(p => p.provider_id));
+    }
+
+    return [...new Set(providers)]; // Remover duplicados
+  } catch (error) {
+    console.error(`Error fetching watch providers for movie ${movieId}:`, error.message);
+    return [];
+  }
+}
+
+// Mapeo de TMDB provider IDs a nuestros platform IDs
+// TMDB IDs: Netflix=8, Prime=1, Disney+=337, HBO=3, Apple TV+=2, etc.
+const TMDB_TO_PLATFORM_MAP = {
+  8: 1,      // Netflix -> platform_id 1
+  1: 2,      // Prime Video -> platform_id 2
+  337: 3,    // Disney+ -> platform_id 3
+  3: 4,      // HBO -> platform_id 4
+  2: 7,      // Apple TV+ -> platform_id 7
+  119: 5,    // Hulu -> platform_id 5
+  62: 6,     // Paramount+ -> platform_id 6
+};
+
 module.exports = {
   getTrendingMovies,
   getMoviesByGenre,
@@ -229,5 +285,7 @@ module.exports = {
   getMovieDetails,
   getMovieReviews,
   getFictionalReviews,
+  getWatchProviders,
+  TMDB_TO_PLATFORM_MAP,
   GENRE_IDS,
 };

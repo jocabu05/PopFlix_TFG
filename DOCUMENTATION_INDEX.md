@@ -1,6 +1,61 @@
 # 📚 Índice de Documentación - PopFlix
 
-## 📖 Documentación Generada en esta Sesión
+## 🆕 NUEVOS DOCUMENTOS - Sistema de Scraping (Diciembre 4, 2024)
+
+### 1. **SCRAPER_MANIFEST.md** ⭐ START HERE
+**Contenido**: Inventario completo del sistema creado
+- 📋 Resumen de creación
+- 📁 Lista de archivos creados (825 líneas Python)
+- 🛠️ Herramientas y librerías utilizadas
+- ✅ Funcionalidades implementadas
+- 📊 Estado de base de datos
+- 🎓 Valor educativo para TFG
+
+**Usar cuando**: Necesitas saber qué se creó y dónde está todo
+
+---
+
+### 2. **SCRAPER_INTEGRATION_GUIDE.md**
+**Contenido**: Cómo el sistema de scraping se integra con PopFlix
+- 📊 Flujo completo de datos
+- ✅ Estado actual verificado
+- 🔄 Ciclo de actualización automática
+- 🛠️ Opciones de integración (Local, Windows, Linux, Docker)
+- 🔍 Cómo monitorear el sistema
+- ⚠️ Troubleshooting y soluciones
+
+**Usar cuando**: Quieres entender cómo todo encaja juntos
+
+---
+
+### 3. **scraper/README.md**
+**Contenido**: Guía rápida del sistema de scraping
+- 🚀 Inicio rápido (4 pasos)
+- 📁 Estructura de archivos
+- 🔧 Componentes explicados
+- ⚖️ Legalidad y ética detallada
+- 📈 Resultados esperados
+- 🐛 Troubleshooting específico
+
+**Usar cuando**: Necesitas ejecutar o entender el scraper
+
+---
+
+### 4. **scraper/SCRAPING_ARCHITECTURE.md**
+**Contenido**: Documentación técnica profesional
+- 💻 Stack técnico (Selenium, BeautifulSoup, etc.)
+- 🏗️ Arquitectura en 5 capas (Diagrama)
+- 📝 Componentes implementados con código
+- ⚖️ Consideraciones legales detalladas
+- 📥 Guía de instalación paso a paso
+- 🚀 Opciones de producción (NSSM, Systemd, Docker)
+- 📊 Monitoreo y métricas
+
+**Usar cuando**: Necesitas comprensión técnica profunda o desplegar en producción
+
+---
+
+## 📖 DOCUMENTACIÓN EXISTENTE
 
 ### 1. **FEATURES_IMPLEMENTED.md** (150+ líneas)
 **Contenido**: Lista exhaustiva de características

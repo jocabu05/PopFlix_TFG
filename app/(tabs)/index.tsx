@@ -14,7 +14,7 @@ import {
     View,
 } from "react-native";
 
-const API_URL = "http://192.168.68.103:9999";
+const API_URL = "http://172.20.10.2:9999";
 const BG_DARK = "#0F0F0F";
 const BG_ACCENT = "#1A1A1A";
 const NEON_RED = "#B20710";
@@ -52,6 +52,7 @@ export default function HomeScreen() {
   const { user } = useAuthContext();
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [genreMovies, setGenreMovies] = useState<Movie[]>([]);
+  const [platformMovies, setPlatformMovies] = useState<Movie[]>([]);
   const [ranking, setRanking] = useState<RankingMovie[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
@@ -62,38 +63,81 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   
-  // Pagination states
-  const [trendingPage, setTrendingPage] = useState(1);
-  const [genrePage, setGenrePage] = useState(1);
+  // Pagination states - inicializar con página aleatoria para variedad
+  const [trendingPage, setTrendingPage] = useState(() => Math.floor(Math.random() * 5) + 1);
+  const [genrePage, setGenrePage] = useState(() => Math.floor(Math.random() * 5) + 1);
+  const [platformPage, setPlatformPage] = useState(() => Math.floor(Math.random() * 3) + 1);
   const [searchPage, setSearchPage] = useState(1);
 
   useEffect(() => {
     loadData();
   }, [user]);
 
+  const fetchWithTimeout = (url: string, timeout = 8000) => {
+    return Promise.race([
+      fetch(url),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout")), timeout)
+      ),
+    ]);
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log("🔄 Iniciando carga de datos...");
 
       // Cargar películas trending con paginación
-      const trendingRes = await fetch(`${API_URL}/api/movies/trending?page=${trendingPage}`);
-      const trendingData = await trendingRes.json();
-      // Si es la primera página, reemplazar; si no, agregar
-      setTrendingMovies(trendingPage === 1 ? (trendingData.movies || []) : [...trendingMovies, ...(trendingData.movies || [])]);
+      try {
+        console.log(`📍 Fetch trending: ${API_URL}/api/movies/trending?page=${trendingPage}`);
+        const trendingRes = await fetchWithTimeout(`${API_URL}/api/movies/trending?page=${trendingPage}`, 8000);
+        console.log("✅ Response received:", trendingRes.ok, trendingRes.status);
+        const trendingData = await trendingRes.json();
+        console.log("🎬 Trending data:", trendingData.movies?.length || 0, "películas");
+        setTrendingMovies(trendingPage === 1 ? (trendingData.movies || []) : [...trendingMovies, ...(trendingData.movies || [])]);
+      } catch (trendingError) {
+        console.error("❌ Error cargando trending:", trendingError);
+      }
 
       // Cargar ranking semanal (top 3 trending)
-      const rankingRes = await fetch(`${API_URL}/api/weekly-ranking/${user?.id || "1"}`);
-      const rankingData = await rankingRes.json();
-      setRanking(rankingData.ranking || []);
+      try {
+        console.log(`📍 Fetch ranking: ${API_URL}/api/weekly-ranking/${user?.id || "1"}`);
+        const rankingRes = await fetchWithTimeout(`${API_URL}/api/weekly-ranking/${user?.id || "1"}`, 8000);
+        const rankingData = await rankingRes.json();
+        console.log("🏆 Ranking data:", rankingData.ranking?.length || 0, "películas");
+        setRanking(rankingData.ranking || []);
+      } catch (rankingError) {
+        console.error("❌ Error cargando ranking:", rankingError);
+      }
 
       // Cargar películas del primer género por defecto
       if (genres.length > 0) {
-        const genreRes = await fetch(`${API_URL}/api/movies/genre/${genres[0].name}?page=${genrePage}`);
-        const genreData = await genreRes.json();
-        setGenreMovies(genrePage === 1 ? (genreData.movies || []) : [...genreMovies, ...(genreData.movies || [])]);
+        try {
+          console.log(`📍 Fetch genre: ${API_URL}/api/movies/genre/${genres[0].name}?page=${genrePage}`);
+          const genreRes = await fetchWithTimeout(`${API_URL}/api/movies/genre/${genres[0].name}?page=${genrePage}`, 8000);
+          const genreData = await genreRes.json();
+          console.log("🎭 Genre data:", genreData.movies?.length || 0, "películas");
+          setGenreMovies(genrePage === 1 ? (genreData.movies || []) : [...genreMovies, ...(genreData.movies || [])]);
+        } catch (genreError) {
+          console.error("❌ Error cargando género:", genreError);
+        }
       }
+
+      // Cargar películas por plataformas seleccionadas
+      if (user?.id) {
+        try {
+          console.log(`📍 Fetch by platforms: ${API_URL}/api/movies/user/${user.id}/by-platforms?page=${platformPage}`);
+          const platformRes = await fetchWithTimeout(`${API_URL}/api/movies/user/${user.id}/by-platforms?page=${platformPage}`, 8000);
+          const platformData = await platformRes.json();
+          console.log("📱 Platform movies:", platformData.movies?.length || 0, "películas");
+          setPlatformMovies(platformPage === 1 ? (platformData.movies || []) : [...platformMovies, ...(platformData.movies || [])]);
+        } catch (platformError) {
+          console.error("❌ Error cargando películas por plataformas:", platformError);
+        }
+      }
+      console.log("✅ Datos cargados");
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("❌ Error en loadData:", error);
     } finally {
       setLoading(false);
     }
@@ -446,6 +490,29 @@ export default function HomeScreen() {
             >
               {ranking.map((movie) => (
                 <RankingCard key={movie.id} movie={movie} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Películas en tus plataformas */}
+        {!searchQuery && platformMovies.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>En tus plataformas</Text>
+            <Text style={styles.sectionSubtitle}>Disponibles para ti</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.carouselContainer}
+            >
+              {platformMovies.slice(0, 6).map((movie) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onPress={() => handleMovieSelect(movie)}
+                  isFavorite={favorites.has(movie.id)}
+                  onFavoritePress={() => toggleFavorite(movie)}
+                />
               ))}
             </ScrollView>
           </View>

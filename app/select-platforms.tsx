@@ -2,13 +2,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { useAuth } from "../hooks/useAuth";
 
@@ -66,7 +66,7 @@ export default function SelectPlatformsScreen() {
   const loadPlatforms = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://192.168.68.103:9999/api/platforms");
+      const response = await fetch("http://172.20.10.2:9999/api/platforms");
       const data = await response.json();
       setPlatforms(data.platforms);
     } catch (error) {
@@ -101,7 +101,7 @@ export default function SelectPlatformsScreen() {
     try {
       setSaving(true);
       const response = await fetch(
-        `http://192.168.68.103:9999/api/user/${user?.id}/platforms`,
+        `http://172.20.10.2:9999/api/user/${user?.id}/platforms`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

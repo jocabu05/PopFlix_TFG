@@ -19,7 +19,7 @@ const BG_ACCENT = "#1A1A1A";
 const NEON_RED = "#B20710";
 const TEXT_LIGHT = "#FFFFFF";
 const TEXT_MUTED = "#B0B0B0";
-const API_URL = "http://192.168.68.103:9999";
+const API_URL = "http://172.20.10.2:9999";
 
 export interface MovieDetail {
   id: number;

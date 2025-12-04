@@ -22,6 +22,17 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// Verificar conexión a BD al iniciar
+pool.getConnection()
+  .then(conn => {
+    console.log("✅ Conexión a MySQL exitosa");
+    conn.release();
+  })
+  .catch(err => {
+    console.error("❌ ERROR DE CONEXIÓN A MYSQL:", err.message);
+    console.error("⚠️  Verifica que MySQL esté corriendo y la BD 'popflix' exista");
+  });
+
 // Validaciones
 const isValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -473,6 +484,52 @@ app.get("/api/movies/search/:query", async (req, res) => {
   }
 });
 
+// Obtener películas por plataformas del usuario - VERSION SIMPLE
+app.get("/api/movies/user/:userId/by-platforms", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = 10;
+
+    const connection = await pool.getConnection();
+
+    // Paso 1: Obtener plataformas del usuario
+    const [userPlatforms] = await connection.query(
+      "SELECT platform_id FROM user_platforms WHERE user_id = ?",
+      [userId]
+    );
+
+    if (userPlatforms.length === 0) {
+      connection.release();
+      return res.json({ movies: [], count: 0, page, totalPages: 0 });
+    }
+
+    // Paso 2: Obtener películas de esas plataformas
+    const platformIds = userPlatforms.map(p => p.platform_id);
+    const placeholders = platformIds.map(() => "?").join(",");
+    
+    const query = `SELECT DISTINCT m.id, m.title, m.rating, m.release_date, m.poster_url
+                   FROM movies m
+                   INNER JOIN movies_platforms mp ON m.id = mp.movie_id
+                   WHERE mp.platform_id IN (${placeholders})
+                   LIMIT ?, ?`;
+    
+    const offset = (page - 1) * pageSize;
+    const [movies] = await connection.query(query, [...platformIds, offset, pageSize]);
+
+    connection.release();
+
+    res.json({
+      movies: movies || [],
+      count: (movies || []).length,
+      page,
+      totalPages: 10
+    });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.json({ movies: [], count: 0, error: error.message });
+  }
+});
 // Obtener detalles de película
 app.get("/api/movies/:movieId/details", async (req, res) => {
   try {
