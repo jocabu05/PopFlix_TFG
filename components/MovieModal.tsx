@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/context/AuthContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
@@ -14,12 +14,71 @@ import {
     View,
 } from "react-native";
 
-const BG_DARK = "#0F0F0F";
-const BG_ACCENT = "#1A1A1A";
-const NEON_RED = "#B20710";
-const TEXT_LIGHT = "#FFFFFF";
-const TEXT_MUTED = "#B0B0B0";
 const API_URL = "http://172.20.10.2:9999";
+const { width: screenWidth } = Dimensions.get("window");
+
+// Paleta de colores actualizada para coincidir con la app
+const BG_DARK = "#0d1b2a";
+const BG_CARD = "#1a2f45";
+const GRADIENT_BLUE = "#0f3460";
+const ACCENT_CYAN = "#00d9ff";
+const ACCENT_PINK = "#ff006e";
+const TEXT_LIGHT = "#ffffff";
+const TEXT_MUTED = "#b0b9c1";
+
+// Colores de plataformas
+const PLATFORM_COLORS: Record<string, string> = {
+  "Netflix": "#E50914",
+  "Prime Video": "#146EB4",
+  "Disney+": "#113CCF",
+  "HBO Max": "#5822b4",
+  "Hulu": "#1CE783",
+  "Paramount+": "#0064FF",
+  "Apple TV+": "#000000",
+  "Otros": "#666666",
+};
+
+// Logos locales de plataformas
+const PLATFORM_LOGOS: Record<string, any> = {
+  "Netflix": require("../assets/logos/logo-netflix.png"),
+  "Prime Video": require("../assets/logos/prime-logo.png"),
+  "Disney+": require("../assets/logos/disney-logo.jpg"),
+  "HBO Max": require("../assets/logos/hbo-logo.png"),
+  "Hulu": require("../assets/logos/hulu-logo.jpg"),
+  "Paramount+": require("../assets/logos/paramount-logo.png"),
+  "Apple TV+": require("../assets/logos/appleTv-logo.png"),
+};
+
+// Iconos de plataformas (MaterialCommunityIcons - fallback)
+const PLATFORM_ICONS: Record<string, string> = {
+  "Netflix": "netflix",
+  "Prime Video": "package-variant",
+  "Disney+": "castle",
+  "HBO Max": "alpha-h-box",
+  "Hulu": "television-classic",
+  "Paramount+": "alpha-p-box",
+  "Apple TV+": "apple",
+  "Otros": "television",
+};
+
+// Iconos de géneros
+const GENRE_ICONS: Record<string, string> = {
+  "Action": "sword-cross",
+  "Comedy": "emoticon-happy",
+  "Drama": "drama-masks",
+  "Horror": "ghost",
+  "Science Fiction": "rocket-launch",
+  "Animation": "animation-play",
+  "Romance": "heart",
+  "Thriller": "knife",
+  "Adventure": "map-legend",
+  "Fantasy": "wizard-hat",
+  "Documentary": "file-document",
+  "Crime": "handcuffs",
+  "Mystery": "magnify",
+  "Family": "account-group",
+  "default": "movie",
+};
 
 export interface MovieDetail {
   id: number;
@@ -29,6 +88,7 @@ export interface MovieDetail {
   rating: number;
   genre: string;
   platform: string;
+  platforms?: string[];
   duration?: string;
   year?: number;
 }
@@ -41,6 +101,18 @@ interface Review {
   date: string;
 }
 
+interface ReviewStats {
+  totalReviews: number;
+  averageRating: string | null;
+  distribution: {
+    star5: number;
+    star4: number;
+    star3: number;
+    star2: number;
+    star1: number;
+  };
+}
+
 interface MovieModalProps {
   visible: boolean;
   movie: MovieDetail | null;
@@ -51,6 +123,28 @@ interface MovieModalProps {
 
 const { height } = Dimensions.get("window");
 
+// Small helper component to load poster safely with one retry using reconstructed path
+function MoviePoster({ uri, reconstructedBase }: { uri?: string; reconstructedBase?: string }) {
+  const [currentUri, setCurrentUri] = useState<string | null>(uri || reconstructedBase || null);
+  const [attempt, setAttempt] = useState(0);
+  const PLACEHOLDER = "https://via.placeholder.com/342x513/1a2f45/ffffff?text=No+Image";
+
+  return (
+    <Image
+      source={{ uri: currentUri || PLACEHOLDER }}
+      style={styles.posterImage}
+      onError={() => {
+        if (attempt === 0 && reconstructedBase && currentUri !== reconstructedBase) {
+          setAttempt(1);
+          setCurrentUri(reconstructedBase);
+          return;
+        }
+        setCurrentUri(PLACEHOLDER);
+      }}
+    />
+  );
+}
+
 export default function MovieModal({ 
   visible, 
   movie, 
@@ -58,36 +152,48 @@ export default function MovieModal({
   onAddToFavorites,
   isFavorite = false 
 }: MovieModalProps) {
+  const { user } = useAuthContext();
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(8);
   const [reviewContent, setReviewContent] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [showReviewsSection, setShowReviewsSection] = useState(false);
 
-  // Cargar reseñas reales de TMDB cuando el modal se abre
+  // Reset states when modal closes
   useEffect(() => {
-    if (!visible || !movie) {
-      return;
+    if (!visible) {
+      setReviews([]);
+      setReviewStats(null);
+      setReviewsLoaded(false);
+      setShowReviewsSection(false);
+      setShowAllReviews(false);
+      setShowReviewForm(false);
     }
+  }, [visible]);
 
-    const loadReviews = async () => {
-      try {
-        setLoadingReviews(true);
-        const response = await fetch(`${API_URL}/api/movies/${movie.id}/reviews`);
-        const data = await response.json();
-        setReviews(data.reviews || []);
-      } catch (error) {
-        console.error("Error loading reviews:", error);
-        setReviews([]);
-      } finally {
-        setLoadingReviews(false);
-      }
-    };
-
-    loadReviews();
-  }, [visible, movie?.id]);
+  // Cargar reseñas solo cuando el usuario expande la sección (lazy load)
+  const handleShowReviews = async () => {
+    setShowReviewsSection(true);
+    if (reviewsLoaded || !movie) return;
+    
+    try {
+      setLoadingReviews(true);
+      const response = await fetch(`${API_URL}/api/movies/${movie.id}/reviews`);
+      const data = await response.json();
+      setReviews(data.reviews || []);
+      setReviewsLoaded(true);
+    } catch (error) {
+      console.error("Error loading reviews:", error);
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   const submitReview = async () => {
     if (!movie) return;
@@ -99,14 +205,15 @@ export default function MovieModal({
 
     try {
       setSubmittingReview(true);
-      const { user } = useAuth();
-      const userId = user?.id;
+      const userId = user?.id ? Number(user.id) : null;
       
       if (!userId) {
-        alert("Debes estar logged in para publicar una reseña");
+        alert("Debes iniciar sesión para publicar una reseña");
         setSubmittingReview(false);
         return;
       }
+
+      console.log("📝 Enviando reseña:", { userId, movieId: movie.id, rating: reviewRating });
       
       const response = await fetch(`${API_URL}/api/reviews`, {
         method: "POST",
@@ -125,9 +232,11 @@ export default function MovieModal({
         setReviewRating(8);
         setShowReviewForm(false);
         // Recargar reseñas
-        loadReviews();
+        setReviewsLoaded(false);
+        handleShowReviews();
       } else {
-        alert("Error al publicar la reseña");
+        const errorData = await response.json();
+        alert(errorData.message || "Error al publicar la reseña");
       }
     } catch (error) {
       console.error("Error submitting review:", error);
@@ -145,9 +254,11 @@ export default function MovieModal({
       const response = await fetch(`${API_URL}/api/movies/${movie.id}/reviews`);
       const data = await response.json();
       setReviews(data.reviews || []);
+      setReviewStats(data.stats || null);
     } catch (error) {
       console.error("Error loading reviews:", error);
       setReviews([]);
+      setReviewStats(null);
     } finally {
       setLoadingReviews(false);
     }
@@ -183,10 +294,16 @@ export default function MovieModal({
         >
           {/* Poster y gradiente */}
           <View style={styles.posterContainer}>
-            <Image
-              source={{ uri: movie.poster_url }}
-              style={styles.posterImage}
-            />
+            {/* compute reconstructed fallback from last path segment */}
+            {
+              (() => {
+                const original = movie.poster_url || "";
+                const lastSegment = original.split('/').filter(Boolean).pop() || "";
+                return (
+                  <MoviePoster uri={movie.poster_url} reconstructedBase={lastSegment && lastSegment.endsWith('.jpg') ? `https://image.tmdb.org/t/p/w342/${lastSegment}` : undefined} />
+                );
+              })()
+            }
             <View style={styles.gradient} />
           </View>
 
@@ -200,9 +317,9 @@ export default function MovieModal({
                 <MaterialCommunityIcons
                   name="star"
                   size={16}
-                  color={NEON_RED}
+                  color={ACCENT_PINK}
                 />
-                <Text style={styles.metaText}>{movie.rating}/10</Text>
+                <Text style={styles.metaText}>{movie.rating ? Number(movie.rating).toFixed(1) : 'N/A'}/10</Text>
               </View>
 
               {movie.year && (
@@ -210,7 +327,7 @@ export default function MovieModal({
                   <MaterialCommunityIcons
                     name="calendar"
                     size={16}
-                    color={NEON_RED}
+                    color={ACCENT_PINK}
                   />
                   <Text style={styles.metaText}>{movie.year}</Text>
                 </View>
@@ -221,7 +338,7 @@ export default function MovieModal({
                   <MaterialCommunityIcons
                     name="clock"
                     size={16}
-                    color={NEON_RED}
+                    color={ACCENT_PINK}
                   />
                   <Text style={styles.metaText}>{movie.duration}</Text>
                 </View>
@@ -257,7 +374,7 @@ export default function MovieModal({
                 <MaterialCommunityIcons
                   name={isFavorite ? "heart" : "heart-outline"}
                   size={24}
-                  color={isFavorite ? NEON_RED : TEXT_LIGHT}
+                  color={isFavorite ? ACCENT_PINK : TEXT_LIGHT}
                 />
               </TouchableOpacity>
             </View>
@@ -268,79 +385,189 @@ export default function MovieModal({
               <Text style={styles.synopsisText}>{movie.description}</Text>
             </View>
 
-            {/* Reseñas */}
-            <View style={styles.reviewsContainer}>
-              <Text style={styles.reviewsTitle}>Reseñas</Text>
-              {loadingReviews ? (
-                <ActivityIndicator size="large" color={NEON_RED} style={{ marginVertical: 20 }} />
-              ) : reviews.length > 0 ? (
-                <View style={styles.reviewsList}>
-                  {displayedReviews.map((review) => (
-                    <View key={review.id} style={styles.reviewItem}>
-                      <View style={styles.reviewHeader}>
-                        <Text style={styles.reviewAuthor}>{review.author}</Text>
-                        {review.rating !== null && (
-                          <View style={styles.reviewRating}>
-                            <MaterialCommunityIcons
-                              name="star"
-                              size={14}
-                              color={NEON_RED}
-                            />
-                            <Text style={styles.reviewRatingText}>{review.rating}/10</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.reviewDate}>{review.date}</Text>
-                      <Text style={styles.reviewContent}>{review.content}</Text>
+            {/* Plataformas disponibles con logos reales */}
+            {movie.platforms && movie.platforms.length > 0 && (
+              <View style={styles.platformsSection}>
+                <Text style={styles.platformsSectionTitle}>Disponible en</Text>
+                <View style={styles.platformBadges}>
+                  {movie.platforms.map((platform, index) => (
+                    <View 
+                      key={index} 
+                      style={[
+                        styles.platformLogoContainer,
+                        { backgroundColor: PLATFORM_COLORS[platform] || PLATFORM_COLORS["Otros"] }
+                      ]}
+                    >
+                      {PLATFORM_LOGOS[platform] ? (
+                        <Image 
+                          source={PLATFORM_LOGOS[platform]}
+                          style={styles.platformLogoImage}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <MaterialCommunityIcons 
+                          name={(PLATFORM_ICONS[platform] || PLATFORM_ICONS["Otros"]) as any}
+                          size={28} 
+                          color={TEXT_LIGHT} 
+                        />
+                      )}
                     </View>
                   ))}
                 </View>
-              ) : (
-                <Text style={styles.noReviewsText}>No hay reseñas disponibles para esta película</Text>
-              )}
-              
-              {reviews.length > 1 && !showAllReviews && (
-                <TouchableOpacity 
-                  style={styles.showMoreButton}
-                  onPress={() => setShowAllReviews(true)}
-                >
-                  <Text style={styles.showMoreText}>Ver más reseñas ({reviews.length})</Text>
-                  <MaterialCommunityIcons
-                    name="chevron-down"
-                    size={20}
-                    color={NEON_RED}
-                  />
-                </TouchableOpacity>
-              )}
+                <View style={styles.platformNamesContainer}>
+                  {movie.platforms.map((platform, index) => (
+                    <Text key={index} style={styles.platformNameText}>{platform}</Text>
+                  ))}
+                </View>
+              </View>
+            )}
 
-              {showAllReviews && reviews.length > 1 && (
-                <TouchableOpacity 
-                  style={styles.showMoreButton}
-                  onPress={() => setShowAllReviews(false)}
-                >
-                  <Text style={styles.showMoreText}>Ver menos</Text>
-                  <MaterialCommunityIcons
-                    name="chevron-up"
-                    size={20}
-                    color={NEON_RED}
+            {/* Género */}
+            {movie.genre && (
+              <View style={styles.genreSection}>
+                <Text style={styles.genreSectionTitle}>Género</Text>
+                <View style={styles.genreBadge}>
+                  <MaterialCommunityIcons 
+                    name={(GENRE_ICONS[movie.genre] || GENRE_ICONS["default"]) as any}
+                    size={18} 
+                    color={ACCENT_CYAN} 
                   />
+                  <Text style={styles.genreBadgeText}>{movie.genre}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Reseñas - Lazy Load */}
+            <View style={styles.reviewsContainer}>
+              {!showReviewsSection ? (
+                <TouchableOpacity 
+                  style={styles.showReviewsButton}
+                  onPress={handleShowReviews}
+                >
+                  <MaterialCommunityIcons name="comment-text-outline" size={20} color={ACCENT_CYAN} />
+                  <Text style={styles.showReviewsButtonText}>Ver reseñas</Text>
+                  <MaterialCommunityIcons name="chevron-down" size={20} color={ACCENT_CYAN} />
                 </TouchableOpacity>
+              ) : (
+                <>
+                  <Text style={styles.reviewsTitle}>Reseñas</Text>
+                  
+                  {/* Estadísticas tipo Google */}
+                  {reviewStats && reviewStats.totalReviews > 0 && (
+                    <View style={styles.reviewStatsContainer}>
+                      <View style={styles.reviewStatsHeader}>
+                        <Text style={styles.reviewStatsAverage}>
+                          {reviewStats.averageRating}
+                        </Text>
+                        <View>
+                          <View style={styles.reviewStatsStars}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <MaterialCommunityIcons
+                                key={star}
+                                name={parseFloat(reviewStats.averageRating || "0") >= star * 2 ? "star" : 
+                                      parseFloat(reviewStats.averageRating || "0") >= star * 2 - 1 ? "star-half-full" : "star-outline"}
+                                size={20}
+                                color="#FFD700"
+                              />
+                            ))}
+                          </View>
+                          <Text style={styles.reviewStatsCount}>
+                            {reviewStats.totalReviews} {reviewStats.totalReviews === 1 ? "reseña" : "reseñas"}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {/* Barras de distribución */}
+                      <View style={styles.reviewStatsDistribution}>
+                        {[
+                          { label: "5", count: reviewStats.distribution.star5 },
+                          { label: "4", count: reviewStats.distribution.star4 },
+                          { label: "3", count: reviewStats.distribution.star3 },
+                          { label: "2", count: reviewStats.distribution.star2 },
+                          { label: "1", count: reviewStats.distribution.star1 },
+                        ].map((item) => (
+                          <View key={item.label} style={styles.reviewStatsBar}>
+                            <Text style={styles.reviewStatsBarLabel}>{item.label}</Text>
+                            <View style={styles.reviewStatsBarBg}>
+                              <View 
+                                style={[
+                                  styles.reviewStatsBarFill, 
+                                  { width: `${reviewStats.totalReviews > 0 ? (item.count / reviewStats.totalReviews) * 100 : 0}%` }
+                                ]} 
+                              />
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  
+                  {loadingReviews ? (
+                    <ActivityIndicator size="small" color={ACCENT_PINK} style={{ marginVertical: 16 }} />
+                  ) : reviews.length > 0 ? (
+                    <View style={styles.reviewsList}>
+                      {displayedReviews.map((review) => (
+                        <View key={review.id} style={styles.reviewItem}>
+                          <View style={styles.reviewHeader}>
+                            <Text style={styles.reviewAuthor}>{review.author}</Text>
+                            {review.rating !== null && (
+                              <View style={styles.reviewRating}>
+                                <MaterialCommunityIcons
+                                  name="star"
+                                  size={14}
+                                  color="#FFD700"
+                                />
+                                <Text style={styles.reviewRatingText}>{review.rating}/10</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.reviewDate}>{review.date}</Text>
+                          <Text style={styles.reviewContent}>{review.content}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noReviewsText}>No hay reseñas disponibles</Text>
+                  )}
+                  
+                  {reviews.length > 1 && !showAllReviews && (
+                    <TouchableOpacity 
+                      style={styles.showMoreButton}
+                      onPress={() => setShowAllReviews(true)}
+                    >
+                      <Text style={styles.showMoreText}>Ver más ({reviews.length})</Text>
+                      <MaterialCommunityIcons name="chevron-down" size={20} color={ACCENT_PINK} />
+                    </TouchableOpacity>
+                  )}
+
+                  {showAllReviews && reviews.length > 1 && (
+                    <TouchableOpacity 
+                      style={styles.showMoreButton}
+                      onPress={() => setShowAllReviews(false)}
+                    >
+                      <Text style={styles.showMoreText}>Ver menos</Text>
+                      <MaterialCommunityIcons name="chevron-up" size={20} color={ACCENT_PINK} />
+                    </TouchableOpacity>
+                  )}
+                </>
               )}
 
               {/* Botón para crear reseña */}
-              <TouchableOpacity 
-                style={styles.createReviewButton}
-                onPress={() => setShowReviewForm(!showReviewForm)}
-              >
-                <MaterialCommunityIcons
-                  name={showReviewForm ? "close" : "pencil"}
-                  size={18}
-                  color={TEXT_LIGHT}
-                />
-                <Text style={styles.createReviewButtonText}>
-                  {showReviewForm ? "Cancelar" : "Escribir reseña"}
-                </Text>
-              </TouchableOpacity>
+              {showReviewsSection && (
+                <TouchableOpacity 
+                  style={styles.createReviewButton}
+                  onPress={() => setShowReviewForm(!showReviewForm)}
+                >
+                  <MaterialCommunityIcons
+                    name={showReviewForm ? "close" : "pencil"}
+                    size={18}
+                    color={TEXT_LIGHT}
+                  />
+                  <Text style={styles.createReviewButtonText}>
+                    {showReviewForm ? "Cancelar" : "Escribir reseña"}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* Formulario de crear reseña */}
               {showReviewForm && (
@@ -419,7 +646,7 @@ export default function MovieModal({
                 <Text style={styles.detailLabel}>Calificación</Text>
                 <View style={styles.ratingBadge}>
                   <Text style={styles.ratingBadgeText}>
-                    {movie.rating} / 10
+                    {movie.rating ? Number(movie.rating).toFixed(1) : 'N/A'} / 10
                   </Text>
                 </View>
               </View>
@@ -443,7 +670,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
   },
   closeButton: {
     width: 40,
@@ -505,11 +732,11 @@ const styles = StyleSheet.create({
   tag: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     borderRadius: 16,
   },
   platformTag: {
-    backgroundColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
   },
   tagText: {
     fontSize: 12,
@@ -526,7 +753,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
     paddingVertical: 12,
     borderRadius: 8,
   },
@@ -540,10 +767,10 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: NEON_RED,
+    borderColor: ACCENT_PINK,
   },
   synopsisContainer: {
     marginBottom: 24,
@@ -565,7 +792,7 @@ const styles = StyleSheet.create({
   detailItem: {
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: BG_ACCENT,
+    borderBottomColor: BG_CARD,
   },
   detailLabel: {
     fontSize: 12,
@@ -579,25 +806,53 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   platformBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     alignSelf: "flex-start",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: NEON_RED,
-    borderRadius: 4,
+    paddingVertical: 8,
+    backgroundColor: ACCENT_PINK,
+    borderRadius: 20,
+    gap: 6,
   },
   platformBadgeText: {
     fontSize: 12,
     fontWeight: "bold",
     color: TEXT_LIGHT,
   },
+  // Estilos para logos de plataformas
+  platformLogoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  platformNamesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    marginTop: 8,
+  },
+  platformNameText: {
+    fontSize: 11,
+    color: TEXT_MUTED,
+    textAlign: "center",
+    width: 50,
+  },
   ratingBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     borderRadius: 4,
     borderLeftWidth: 3,
-    borderLeftColor: NEON_RED,
+    borderLeftColor: ACCENT_PINK,
   },
   ratingBadgeText: {
     fontSize: 12,
@@ -624,11 +879,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewItem: {
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: NEON_RED,
+    borderLeftColor: ACCENT_PINK,
   },
   reviewHeader: {
     flexDirection: "row",
@@ -648,7 +903,7 @@ const styles = StyleSheet.create({
   },
   reviewRatingText: {
     fontSize: 12,
-    color: NEON_RED,
+    color: ACCENT_PINK,
     fontWeight: "bold",
   },
   reviewDate: {
@@ -671,7 +926,7 @@ const styles = StyleSheet.create({
   },
   showMoreText: {
     fontSize: 13,
-    color: NEON_RED,
+    color: ACCENT_PINK,
     fontWeight: "600",
   },
   createReviewButton: {
@@ -681,7 +936,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
     borderRadius: 8,
     gap: 8,
   },
@@ -693,10 +948,10 @@ const styles = StyleSheet.create({
   reviewFormContainer: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: BG_ACCENT,
+    backgroundColor: BG_CARD,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: NEON_RED,
+    borderLeftColor: ACCENT_PINK,
   },
   reviewFormTitle: {
     fontSize: 14,
@@ -728,8 +983,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ratingButtonActive: {
-    backgroundColor: NEON_RED,
-    borderColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
+    borderColor: ACCENT_PINK,
   },
   ratingButtonText: {
     fontSize: 12,
@@ -756,7 +1011,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   submitButton: {
-    backgroundColor: NEON_RED,
+    backgroundColor: ACCENT_PINK,
     paddingVertical: 12,
     borderRadius: 6,
     alignItems: "center",
@@ -770,7 +1025,125 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   addButtonActive: {
-    borderColor: NEON_RED,
+    borderColor: ACCENT_PINK,
     backgroundColor: "rgba(178, 7, 16, 0.2)",
+  },
+  // Estilos para sección de plataformas
+  platformsSection: {
+    marginBottom: 20,
+  },
+  platformsSectionTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+    marginBottom: 10,
+  },
+  platformBadges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  platformLogoImage: {
+    width: 32,
+    height: 32,
+  },
+  // Estilos para estadísticas de reseñas tipo Google
+  reviewStatsContainer: {
+    backgroundColor: BG_CARD,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0, 217, 255, 0.2)",
+  },
+  reviewStatsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  reviewStatsAverage: {
+    fontSize: 48,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+    marginRight: 16,
+  },
+  reviewStatsStars: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  reviewStatsCount: {
+    fontSize: 13,
+    color: TEXT_MUTED,
+  },
+  reviewStatsDistribution: {
+    marginTop: 8,
+  },
+  reviewStatsBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  reviewStatsBarLabel: {
+    width: 20,
+    fontSize: 12,
+    color: TEXT_MUTED,
+    marginRight: 8,
+  },
+  reviewStatsBarBg: {
+    flex: 1,
+    height: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  reviewStatsBarFill: {
+    height: "100%",
+    backgroundColor: ACCENT_CYAN,
+    borderRadius: 4,
+  },
+  // Estilos para sección de género
+  genreSection: {
+    marginBottom: 20,
+  },
+  genreSectionTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: TEXT_LIGHT,
+    marginBottom: 10,
+  },
+  genreBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: BG_CARD,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: ACCENT_CYAN,
+    gap: 6,
+  },
+  genreBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: TEXT_LIGHT,
+  },
+  // Estilos para botón de ver reseñas
+  showReviewsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: BG_CARD,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ACCENT_CYAN,
+    gap: 8,
+  },
+  showReviewsButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: ACCENT_CYAN,
   },
 });

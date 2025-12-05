@@ -349,41 +349,53 @@ function isCacheValid(timestamp) {
   return timestamp && (Date.now() - timestamp < cacheTimeout);
 }
 
-// Obtener películas trending con paginación
+// Obtener películas trending con paginación real
 app.get("/api/movies/trending", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const pageSize = 10;
-
-    // Verificar caché
-    if (isCacheValid(moviesCache.trending.timestamp)) {
-      const allMovies = moviesCache.trending.data;
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      const paginatedMovies = allMovies.slice(start, end);
-
-      return res.status(200).json({
-        movies: paginatedMovies,
-        count: paginatedMovies.length,
-        page: page,
-        totalPages: Math.ceil(allMovies.length / pageSize),
-        message: "Películas trending obtenidas"
-      });
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [movies] = await connection.query(
+      `SELECT m.*, 
+        (SELECT g.name FROM movie_genres mg 
+         JOIN genres g ON mg.genre_id = g.id 
+         WHERE mg.movie_id = m.id LIMIT 1) as genre
+       FROM movies m 
+       WHERE m.release_date <= CURDATE()
+       ORDER BY m.release_date DESC, m.popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    
+    // Obtener plataformas para cada película
+    for (const movie of movies) {
+      const [platforms] = await connection.query(
+        `SELECT p.id, p.name, p.icon, 
+          CASE p.name 
+            WHEN 'Netflix' THEN '#E50914'
+            WHEN 'Prime Video' THEN '#146EB4'
+            WHEN 'Disney+' THEN '#113CCF'
+            WHEN 'HBO Max' THEN '#5822b4'
+            WHEN 'Hulu' THEN '#1CE783'
+            WHEN 'Paramount+' THEN '#0064FF'
+            WHEN 'Apple TV+' THEN '#555555'
+            ELSE '#666666'
+          END as color
+         FROM platforms p 
+         JOIN movie_platforms mp ON p.id = mp.platform_id 
+         WHERE mp.movie_id = ?`,
+        [movie.id]
+      );
+      movie.platforms = platforms;
     }
-
-    // Si caché expiró, obtener nuevas películas
-    const movies = await getTrendingMovies();
-    moviesCache.trending = { data: movies, timestamp: Date.now() };
-
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const paginatedMovies = movies.slice(start, end);
+    
+    connection.release();
 
     res.status(200).json({
-      movies: paginatedMovies,
-      count: paginatedMovies.length,
+      movies: movies,
+      count: movies.length,
       page: page,
-      totalPages: Math.ceil(movies.length / pageSize),
       message: "Películas trending obtenidas"
     });
   } catch (error) {
@@ -397,7 +409,7 @@ app.get("/api/movies/genre/:genre", async (req, res) => {
   try {
     const { genre } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const pageSize = 10;
+    const pageSize = 9999;
     const genreId = GENRE_IDS[genre];
 
     if (!genreId) {
@@ -450,7 +462,7 @@ app.get("/api/movies/search/:query", async (req, res) => {
   try {
     const { query } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const pageSize = 10;
+    const pageSize = 9999;
     
     if (query.length < 2) {
       return res.status(400).json({ message: "Búsqueda debe tener al menos 2 caracteres" });
@@ -503,7 +515,7 @@ app.get("/api/movies/user/:userId/by-platforms", async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const pageSize = 10;
+    const pageSize = 9999;
 
     const connection = await pool.getConnection();
 
@@ -564,6 +576,58 @@ app.get("/api/movies/:movieId/details", async (req, res) => {
   }
 });
 
+// Obtener plataformas de una película
+app.get("/api/movies/:movieId/platforms", async (req, res) => {
+  try {
+    const { movieId } = req.params;
+    const connection = await pool.getConnection();
+    
+    const [platforms] = await connection.query(
+      `SELECT p.id, p.name, p.icon, p.color
+       FROM movie_platforms mp
+       JOIN platforms p ON mp.platform_id = p.id
+       WHERE mp.movie_id = ?
+       ORDER BY p.name`,
+      [movieId]
+    );
+    connection.release();
+    
+    res.status(200).json({
+      platforms,
+      count: platforms.length
+    });
+  } catch (error) {
+    console.error("Error fetching movie platforms:", error);
+    res.status(500).json({ message: "Error al obtener plataformas", error: error.message });
+  }
+});
+
+// Obtener plataformas de una serie
+app.get("/api/series/:seriesId/platforms", async (req, res) => {
+  try {
+    const { seriesId } = req.params;
+    const connection = await pool.getConnection();
+    
+    const [platforms] = await connection.query(
+      `SELECT p.id, p.name, p.icon, p.color
+       FROM series_platforms sp
+       JOIN platforms p ON sp.platform_id = p.id
+       WHERE sp.series_id = ?
+       ORDER BY p.name`,
+      [seriesId]
+    );
+    connection.release();
+    
+    res.status(200).json({
+      platforms,
+      count: platforms.length
+    });
+  } catch (error) {
+    console.error("Error fetching series platforms:", error);
+    res.status(500).json({ message: "Error al obtener plataformas", error: error.message });
+  }
+});
+
 // Obtener reseñas de película (TMDB + Usuarios + Ficticias)
 app.get("/api/movies/:movieId/reviews", async (req, res) => {
   try {
@@ -584,6 +648,20 @@ app.get("/api/movies/:movieId/reviews", async (req, res) => {
        LIMIT 10`,
       [movieId]
     );
+    
+    // 3. Obtener estadísticas de puntuaciones (estilo Google)
+    const [stats] = await connection.query(
+      `SELECT 
+        COUNT(*) as totalReviews,
+        AVG(rating) as averageRating,
+        SUM(CASE WHEN rating >= 9 THEN 1 ELSE 0 END) as star5,
+        SUM(CASE WHEN rating >= 7 AND rating < 9 THEN 1 ELSE 0 END) as star4,
+        SUM(CASE WHEN rating >= 5 AND rating < 7 THEN 1 ELSE 0 END) as star3,
+        SUM(CASE WHEN rating >= 3 AND rating < 5 THEN 1 ELSE 0 END) as star2,
+        SUM(CASE WHEN rating < 3 THEN 1 ELSE 0 END) as star1
+       FROM user_reviews WHERE movie_id = ?`,
+      [movieId]
+    );
     connection.release();
     
     // Formatear reseñas de usuario
@@ -596,7 +674,7 @@ app.get("/api/movies/:movieId/reviews", async (req, res) => {
       source: "user",
     }));
     
-    // 3. Combinar todas las reseñas: usuario (prioridad) + TMDB + ficticias
+    // 4. Combinar todas las reseñas: usuario (prioridad) + TMDB + ficticias
     let allReviews = [...formattedUserReviews, ...tmdbReviews];
     
     // Si no hay suficientes reseñas, agregar ficticias
@@ -607,8 +685,22 @@ app.get("/api/movies/:movieId/reviews", async (req, res) => {
       allReviews = [...allReviews, ...fictionalToAdd.slice(0, 3 - allReviews.length)];
     }
     
+    // Estadísticas de puntuación tipo Google
+    const reviewStats = {
+      totalReviews: stats[0].totalReviews || 0,
+      averageRating: stats[0].averageRating ? parseFloat(stats[0].averageRating).toFixed(1) : null,
+      distribution: {
+        star5: stats[0].star5 || 0,
+        star4: stats[0].star4 || 0,
+        star3: stats[0].star3 || 0,
+        star2: stats[0].star2 || 0,
+        star1: stats[0].star1 || 0,
+      }
+    };
+    
     res.status(200).json({
       reviews: allReviews,
+      stats: reviewStats,
       count: allReviews.length,
       message: "Reseñas obtenidas"
     });
@@ -750,17 +842,44 @@ app.delete("/api/favorites/:userId/:movieId", async (req, res) => {
 app.get("/api/series/trending", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 30;
     const offset = (page - 1) * limit;
     
     const connection = await pool.getConnection();
     
     const [series] = await connection.query(
-      `SELECT s.* FROM series s 
-       ORDER BY s.popularity DESC 
+      `SELECT s.*,
+        (SELECT g.name FROM series_genres sg 
+         JOIN genres g ON sg.genre_id = g.id 
+         WHERE sg.series_id = s.id LIMIT 1) as genre
+       FROM series s 
+       WHERE s.first_air_date <= CURDATE()
+       ORDER BY s.first_air_date DESC, s.popularity DESC 
        LIMIT ? OFFSET ?`,
       [limit, offset]
     );
+    
+    // Obtener plataformas para cada serie
+    for (const serie of series) {
+      const [platforms] = await connection.query(
+        `SELECT p.id, p.name, p.icon, 
+          CASE p.name 
+            WHEN 'Netflix' THEN '#E50914'
+            WHEN 'Prime Video' THEN '#146EB4'
+            WHEN 'Disney+' THEN '#113CCF'
+            WHEN 'HBO Max' THEN '#5822b4'
+            WHEN 'Hulu' THEN '#1CE783'
+            WHEN 'Paramount+' THEN '#0064FF'
+            WHEN 'Apple TV+' THEN '#555555'
+            ELSE '#666666'
+          END as color
+         FROM platforms p 
+         JOIN series_platforms sp ON p.id = sp.platform_id 
+         WHERE sp.series_id = ?`,
+        [serie.id]
+      );
+      serie.platforms = platforms;
+    }
     
     connection.release();
     
@@ -781,7 +900,7 @@ app.get("/api/series/genre/:genreName", async (req, res) => {
   try {
     const { genreName } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 30;
     const offset = (page - 1) * limit;
     
     const connection = await pool.getConnection();
@@ -791,7 +910,7 @@ app.get("/api/series/genre/:genreName", async (req, res) => {
        INNER JOIN series_genres sg ON s.id = sg.series_id
        INNER JOIN genres g ON sg.genre_id = g.id
        WHERE g.name = ?
-       ORDER BY s.popularity DESC
+       ORDER BY s.first_air_date DESC, s.popularity DESC
        LIMIT ? OFFSET ?`,
       [genreName, limit, offset]
     );
@@ -815,7 +934,7 @@ app.get("/api/series/search/:query", async (req, res) => {
   try {
     const { query } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 30;
     const offset = (page - 1) * limit;
     
     const connection = await pool.getConnection();
@@ -823,7 +942,7 @@ app.get("/api/series/search/:query", async (req, res) => {
     const [series] = await connection.query(
       `SELECT * FROM series 
        WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
-       ORDER BY popularity DESC
+       ORDER BY first_air_date DESC, popularity DESC
        LIMIT ? OFFSET ?`,
       [`%${query.toLowerCase()}%`, `%${query.toLowerCase()}%`, limit, offset]
     );
@@ -847,7 +966,7 @@ app.get("/api/series/user/:userId/by-platforms", async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 30;
     const offset = (page - 1) * limit;
     
     const connection = await pool.getConnection();
@@ -857,7 +976,7 @@ app.get("/api/series/user/:userId/by-platforms", async (req, res) => {
        INNER JOIN series_platforms sp ON s.id = sp.series_id
        INNER JOIN user_platforms up ON sp.platform_id = up.platform_id
        WHERE up.user_id = ?
-       ORDER BY s.popularity DESC
+       ORDER BY s.first_air_date DESC, s.popularity DESC
        LIMIT ? OFFSET ?`,
       [userId, limit, offset]
     );
@@ -874,6 +993,273 @@ app.get("/api/series/user/:userId/by-platforms", async (req, res) => {
   } catch (error) {
     console.error("Error fetching user series:", error);
     res.status(500).json({ message: "Error al obtener series del usuario", error: error.message });
+  }
+});
+
+// ============ NUEVOS ENDPOINTS NETFLIX STYLE ============
+
+// Películas populares (ordenadas por popularidad)
+app.get("/api/movies/popular", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [movies] = await connection.query(
+      `SELECT * FROM movies WHERE release_date <= CURDATE() ORDER BY release_date DESC, popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ movies: movies || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Películas mejor valoradas
+app.get("/api/movies/top-rated", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [movies] = await connection.query(
+      `SELECT * FROM movies WHERE rating >= 7.0 ORDER BY rating DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ movies: movies || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Helper function para obtener películas por género (simplificado)
+async function getMoviesByGenreWithPlatforms(genreName, limit, offset) {
+  const connection = await pool.getConnection();
+  const [movies] = await connection.query(
+    `SELECT DISTINCT m.*, ? as genre
+     FROM movies m
+     INNER JOIN movie_genres mg ON m.id = mg.movie_id
+     INNER JOIN genres g ON mg.genre_id = g.id
+     WHERE g.name = ? AND m.release_date <= CURDATE()
+     ORDER BY m.release_date DESC, m.popularity DESC LIMIT ? OFFSET ?`,
+    [genreName, genreName, limit, offset]
+  );
+  connection.release();
+  
+  return movies;
+}
+
+// Películas de acción
+app.get("/api/movies/action", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const movies = await getMoviesByGenreWithPlatforms('Action', limit, offset);
+    res.json({ movies, page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Películas de comedia
+app.get("/api/movies/comedy", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const movies = await getMoviesByGenreWithPlatforms('Comedy', limit, offset);
+    res.json({ movies, page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Películas de terror
+app.get("/api/movies/horror", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const movies = await getMoviesByGenreWithPlatforms('Horror', limit, offset);
+    res.json({ movies, page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Películas de ciencia ficción
+app.get("/api/movies/scifi", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const movies = await getMoviesByGenreWithPlatforms('Science Fiction', limit, offset);
+    res.json({ movies, page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Películas de animación
+app.get("/api/movies/animation", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const movies = await getMoviesByGenreWithPlatforms('Animation', limit, offset);
+    res.json({ movies, page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// ============ NUEVOS ENDPOINTS SERIES NETFLIX STYLE ============
+
+// Series populares
+app.get("/api/series/popular", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [series] = await connection.query(
+      `SELECT * FROM series ORDER BY popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ series: series || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Series mejor valoradas
+app.get("/api/series/top-rated", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [series] = await connection.query(
+      `SELECT * FROM series WHERE rating >= 7.5 ORDER BY rating DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ series: series || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Series de drama
+app.get("/api/series/drama", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [series] = await connection.query(
+      `SELECT DISTINCT s.* FROM series s
+       INNER JOIN series_genres sg ON s.id = sg.series_id
+       INNER JOIN genres g ON sg.genre_id = g.id
+       WHERE g.name = 'Drama'
+       ORDER BY s.popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ series: series || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Series de crimen
+app.get("/api/series/crime", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [series] = await connection.query(
+      `SELECT DISTINCT s.* FROM series s
+       INNER JOIN series_genres sg ON s.id = sg.series_id
+       INNER JOIN genres g ON sg.genre_id = g.id
+       WHERE g.name = 'Crime'
+       ORDER BY s.popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ series: series || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Series de comedia
+app.get("/api/series/comedy", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [series] = await connection.query(
+      `SELECT DISTINCT s.* FROM series s
+       INNER JOIN series_genres sg ON s.id = sg.series_id
+       INNER JOIN genres g ON sg.genre_id = g.id
+       WHERE g.name = 'Comedy'
+       ORDER BY s.popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ series: series || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
+// Series de animación
+app.get("/api/series/animation", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const connection = await pool.getConnection();
+    const [series] = await connection.query(
+      `SELECT DISTINCT s.* FROM series s
+       INNER JOIN series_genres sg ON s.id = sg.series_id
+       INNER JOIN genres g ON sg.genre_id = g.id
+       WHERE g.name = 'Animation'
+       ORDER BY s.popularity DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    connection.release();
+    
+    res.json({ series: series || [], page, limit });
+  } catch (error) {
+    res.status(500).json({ message: "Error", error: error.message });
   }
 });
 

@@ -36,11 +36,23 @@ export default function MovieCard({
 }: MovieCardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const PLACEHOLDER = "https://via.placeholder.com/154x230/1a2f45/ffffff?text=No+Image";
 
-  // Convertir URL de poster a versión más pequeña (w342 → w154)
-  const optimizedPosterUrl = movie.poster_url
-    ? movie.poster_url.replace("w342", "w154")
-    : null;
+  // Build a safe optimized poster URL. Some DB entries have malformed paths
+  // (extra segments). We try three variants in order:
+  // 1) short size replacement (w342 -> w154)
+  // 2) reconstruct using last path segment at TMDB base
+  // 3) placeholder
+  const original = movie.poster_url || "";
+  const shortVariant = original ? original.replace("w342", "w154") : "";
+  const lastSegment = original.split('/').filter(Boolean).pop() || "";
+  const reconstructed = lastSegment && lastSegment.endsWith('.jpg')
+    ? `https://image.tmdb.org/t/p/w154/${lastSegment}`
+    : "";
+  const [currentUri, setCurrentUri] = useState<string | null>(
+    shortVariant || reconstructed || null
+  );
 
   return (
     <TouchableOpacity
@@ -55,13 +67,19 @@ export default function MovieCard({
           </View>
         )}
 
-        {!error && optimizedPosterUrl ? (
+        {!error && currentUri ? (
           <Image
-            source={{ uri: optimizedPosterUrl }}
+            source={{ uri: currentUri }}
             style={styles.poster}
             onLoadStart={() => setLoading(true)}
             onLoadEnd={() => setLoading(false)}
             onError={() => {
+              // Retry with reconstructed URL once before falling back to placeholder
+              if (attempt === 0 && reconstructed && currentUri !== reconstructed) {
+                setAttempt(1);
+                setCurrentUri(reconstructed);
+                return;
+              }
               setError(true);
               setLoading(false);
             }}
@@ -98,7 +116,7 @@ export default function MovieCard({
               size={12}
               color="#FFD700"
             />
-            <Text style={styles.ratingText}>{movie.rating.toFixed(1)}</Text>
+            <Text style={styles.ratingText}>{Number(movie.rating).toFixed(1)}</Text>
           </View>
         )}
       </View>

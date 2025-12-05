@@ -1,9 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Animated,
+    Dimensions,
     StyleSheet,
     Text,
     TextInput,
@@ -13,17 +15,20 @@ import {
 import { useAuthContext } from "../context/AuthContext";
 import { login as loginService } from "../services/authService";
 
-// Ruta correcta del logo
 const logo = require("../assets/images/popflix-logo.png");
-const PRIMARY_BLUE = "#1976D2";
 
-// Paleta cinematográfica profesional tipo streaming
-const BG_DARK = "#0F0F0F";              // Negro profundo (Netflix-style)
-const BG_ACCENT = "#1A1A1A";            // Gris oscuro
-const NEON_RED = "#B20710";             // Rojo Netflix oscuro
-const NEON_ORANGE = "#D97706";          // Naranja cálido suave
-const TEXT_LIGHT = "#FFFFFF";
-const TEXT_MUTED = "#B0B0B0";
+// Paleta unificada con la interfaz principal
+const BG_DARK = "#0d1b2a";
+const BG_CARD = "#1a2f45";
+const GRADIENT_BLUE = "#0f3460";
+const GRADIENT_PURPLE = "#533483";
+const ACCENT_CYAN = "#00d9ff";
+const ACCENT_PINK = "#ff006e";
+const ACCENT_ORANGE = "#ff6b35";
+const TEXT_LIGHT = "#ffffff";
+const TEXT_MUTED = "#b0b9c1";
+
+const { width: screenWidth } = Dimensions.get("window");
 
 const isValidEmail = (email: string) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -38,43 +43,23 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Animación del fondo
-  const bgAnimation = new Animated.Value(0);
-  
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bgAnimation, {
-          toValue: 1,
-          duration: 6000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(bgAnimation, {
-          toValue: 0,
-          duration: 6000,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, []);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
   // Animación del logo
-  const logoScale = new Animated.Value(1);
+  const logoScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(logoScale, {
-          toValue: 1.05,
-          duration: 2000,
+          toValue: 1.03,
+          duration: 2500,
           useNativeDriver: true,
         }),
         Animated.timing(logoScale, {
           toValue: 1,
-          duration: 2000,
+          duration: 2500,
           useNativeDriver: true,
         }),
       ])
@@ -130,17 +115,15 @@ export default function LoginScreen() {
   };
 
   return (
-    <Animated.View 
-      style={[
-        styles.container,
-        {
-          backgroundColor: bgAnimation.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [BG_DARK, BG_ACCENT, BG_DARK],
-          }),
-        }
-      ]}
-    >
+    <View style={styles.container}>
+      {/* Fondo con gradiente */}
+      <LinearGradient
+        colors={[BG_DARK, GRADIENT_BLUE, GRADIENT_PURPLE]}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
       {/* HEADER CON LOGO */}
       <View style={styles.headerContainer}>
         <Animated.Image 
@@ -148,7 +131,8 @@ export default function LoginScreen() {
           style={[styles.logo, { transform: [{ scale: logoScale }] }]} 
           resizeMode="contain" 
         />
-        <Text style={styles.subtitle}>Disfruta de tus películas favoritas</Text>
+        <Text style={styles.welcomeText}>Bienvenido de nuevo</Text>
+        <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
       </View>
 
       {/* FORMULARIO */}
@@ -156,51 +140,51 @@ export default function LoginScreen() {
         {/* EMAIL */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="email" size={16} color={NEON_RED} />
+            <MaterialCommunityIcons name="email-outline" size={18} color={ACCENT_CYAN} />
             <Text style={styles.labelText}>Email</Text>
           </View>
-          <TextInput
-            style={[
-              styles.input,
-              focusedInput === 'email' && styles.inputFocused,
-              email && styles.inputFilled,
-              emailError && styles.inputError,
-            ]}
-            placeholder="tu@email.com"
-            placeholderTextColor="#A0A0A0"
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              if (text && !isValidEmail(text)) {
-                setEmailError("Correo electrónico no válido");
-              } else {
-                setEmailError("");
-              }
-            }}
-            onFocus={() => setFocusedInput('email')}
-            onBlur={() => setFocusedInput(null)}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+          <View style={[
+            styles.inputWrapper,
+            focusedInput === 'email' && styles.inputWrapperFocused,
+            emailError && styles.inputWrapperError,
+          ]}>
+            <TextInput
+              style={styles.input}
+              placeholder="tu@email.com"
+              placeholderTextColor={TEXT_MUTED}
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (text && !isValidEmail(text)) {
+                  setEmailError("Correo electrónico no válido");
+                } else {
+                  setEmailError("");
+                }
+              }}
+              onFocus={() => setFocusedInput('email')}
+              onBlur={() => setFocusedInput(null)}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
           {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
         </View>
 
         {/* CONTRASEÑA */}
         <View style={styles.inputGroup}>
           <View style={styles.labelWithIcon}>
-            <MaterialCommunityIcons name="lock" size={16} color={NEON_RED} />
+            <MaterialCommunityIcons name="lock-outline" size={18} color={ACCENT_CYAN} />
             <Text style={styles.labelText}>Contraseña</Text>
           </View>
-          <View style={styles.passwordInputWrapper}>
+          <View style={[
+            styles.inputWrapper,
+            focusedInput === 'password' && styles.inputWrapperFocused,
+            passwordError && styles.inputWrapperError,
+          ]}>
             <TextInput
-              style={[
-                styles.input,
-                focusedInput === 'password' && styles.inputFocused,
-                password && styles.inputFilled,
-                passwordError && styles.inputError,
-              ]}
+              style={styles.input}
               placeholder="Tu contraseña"
-              placeholderTextColor="#A0A0A0"
+              placeholderTextColor={TEXT_MUTED}
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
@@ -220,30 +204,13 @@ export default function LoginScreen() {
             >
               <MaterialCommunityIcons
                 name={showPassword ? "eye-off" : "eye"}
-                size={20}
-                color={NEON_RED}
+                size={22}
+                color={ACCENT_CYAN}
               />
             </TouchableOpacity>
           </View>
           {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
         </View>
-
-        {/* BOTÓN INICIAR SESIÓN */}
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" size="large" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="login" size={20} color="white" style={{ marginRight: 8 }} />
-              <Text style={styles.buttonText}>Iniciar sesión</Text>
-            </>
-          )}
-        </TouchableOpacity>
 
         {/* FORGOT PASSWORD */}
         <TouchableOpacity
@@ -253,6 +220,37 @@ export default function LoginScreen() {
           <Text style={styles.forgotPasswordText}>¿Has olvidado tu contraseña?</Text>
         </TouchableOpacity>
 
+        {/* BOTÓN INICIAR SESIÓN */}
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={loading ? ['#555', '#444'] : [ACCENT_PINK, ACCENT_ORANGE]}
+            style={styles.buttonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="login" size={22} color="white" style={{ marginRight: 10 }} />
+                <Text style={styles.buttonText}>Iniciar sesión</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* DIVISOR */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>o</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
         {/* REGISTRO LINK */}
         <View style={styles.registerLinkContainer}>
           <Text style={styles.registerLinkText}>¿No tienes cuenta? </Text>
@@ -261,7 +259,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -269,46 +267,45 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG_DARK,
-    justifyContent: "flex-start",
-    paddingHorizontal: 20,
-    paddingTop: 40,
   },
-  gradientOverlay: {
+  gradientBackground: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#1976D2",
-    zIndex: -1,
   },
   headerContainer: {
     alignItems: "center",
-    marginBottom: 25,
+    paddingTop: 50,
+    paddingBottom: 20,
   },
   logo: {
-    width: 350,
-    height: 220,
-    marginBottom: 15,
+    width: screenWidth * 0.7,
+    height: 160,
+    marginBottom: 20,
   },
-  welcomeTitle: {
-    fontSize: 26,
+  welcomeText: {
+    fontSize: 28,
     fontWeight: "800",
     color: TEXT_LIGHT,
     marginBottom: 8,
-    letterSpacing: 0.5,
+    textShadowColor: ACCENT_CYAN,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: TEXT_MUTED,
-    letterSpacing: 0.3,
-    fontWeight: "500",
+    letterSpacing: 0.5,
   },
   formContainer: {
-    width: "100%",
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: 20,
   },
   labelWithIcon: {
     flexDirection: "row",
@@ -317,108 +314,106 @@ const styles = StyleSheet.create({
   },
   labelText: {
     color: TEXT_LIGHT,
-    fontSize: 13,
-    fontWeight: "700",
-    marginLeft: 8,
-    letterSpacing: 0.4,
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 10,
+    letterSpacing: 0.5,
   },
-  passwordInputWrapper: {
-    position: "relative",
-    justifyContent: "center",
+  inputWrapper: {
+    backgroundColor: BG_CARD,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "rgba(0, 217, 255, 0.2)",
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  inputWrapperFocused: {
+    borderColor: ACCENT_CYAN,
+    shadowColor: ACCENT_CYAN,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  inputWrapperError: {
+    borderColor: "#ff4757",
   },
   input: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    flex: 1,
     color: TEXT_LIGHT,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    borderColor: "rgba(196,30,58,0.3)",
-    fontSize: 15,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    fontSize: 16,
     fontWeight: "500",
-    height: 50,
-    minHeight: 50,
-  },
-  inputFocused: {
-    borderColor: NEON_RED,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    shadowColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
-  },
-  inputFilled: {
-    borderColor: NEON_RED,
   },
   eyeIcon: {
-    position: "absolute",
-    right: 14,
-    height: "100%",
-    justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  forgotPasswordContainer: {
+    alignItems: "flex-end",
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    color: ACCENT_CYAN,
+    fontSize: 14,
+    fontWeight: "600",
   },
   button: {
-    backgroundColor: NEON_RED,
-    paddingVertical: 16,
-    borderRadius: 0,
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  buttonGradient: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 32,
-    marginBottom: 20,
-    flexDirection: "row",
-    minHeight: 52,
+    paddingVertical: 18,
   },
   buttonDisabled: {
-    backgroundColor: "#5A5A5A",
+    opacity: 0.7,
   },
   buttonText: {
-    color: "#FFFFFF",
+    color: TEXT_LIGHT,
     fontWeight: "800",
+    fontSize: 17,
+    letterSpacing: 1,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+  dividerText: {
+    color: TEXT_MUTED,
+    paddingHorizontal: 16,
     fontSize: 14,
-    letterSpacing: 1.1,
-    fontFamily: "System",
   },
   registerLinkContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 18,
   },
   registerLinkText: {
     color: TEXT_MUTED,
-    fontSize: 14,
+    fontSize: 15,
   },
   registerLinkBold: {
-    color: NEON_RED,
-    fontSize: 14,
+    color: ACCENT_PINK,
+    fontSize: 15,
     fontWeight: "700",
   },
-  forgotPasswordContainer: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  forgotPasswordText: {
-    color: NEON_RED,
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.3,
-  },
-  linkText: {
-    color: "#aaa",
-    textAlign: "center",
-    marginTop: 10,
-    fontSize: 14,
-  },
-  inputError: {
-    borderColor: "#FF6B6B",
-    backgroundColor: "rgba(255, 107, 107, 0.1)",
-  },
   errorText: {
-    color: "#FF6B6B",
+    color: "#ff4757",
     fontSize: 12,
     fontWeight: "600",
-    marginTop: 6,
+    marginTop: 8,
     marginLeft: 4,
   },
 });
